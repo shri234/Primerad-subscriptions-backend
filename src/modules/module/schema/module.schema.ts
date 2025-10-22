@@ -37,5 +37,4 @@ export class Module {
 
 export const ModuleSchema = SchemaFactory.createForClass(Module);
 
-// Add indexes if needed
 ModuleSchema.index({ moduleName: 1 }, { unique: true });

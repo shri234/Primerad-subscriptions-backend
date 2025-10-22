@@ -50,7 +50,7 @@ export class ModuleController {
     }
   }
 
-  @Get('with-pathology-count')
+  @Get('modules-with-pathology-count')
   async getModulesWithPathologyCount(): Promise<
     ModuleResponse<ModuleWithPathologyCount[]>
   > {

@@ -1,7 +1,10 @@
 export interface IPaymentGateway {
   createOrder(data: any): Promise<any>;
-  verifyPayment(data: any): Promise<boolean>;
-  capturePayment?(orderId: string): Promise<any>;
+  verifyPayment(
+    data: any,
+  ): Promise<{ success: boolean; transactionId?: string }>;
+  capturePayment(orderId: string): Promise<any>;
+  refundPayment(transactionId: string): Promise<any>;
 }
 
 export interface CreateSubscriptionData {

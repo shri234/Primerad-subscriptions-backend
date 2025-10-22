@@ -32,7 +32,7 @@ export class ModuleService {
   ) {}
 
   async findAll(): Promise<ModuleDocument[]> {
-    return this.moduleModel.find({}, { moduleName: 1 }).exec();
+    return this.moduleModel.find({}).exec();
   }
 
   async findById(moduleId: string): Promise<ModuleDocument> {

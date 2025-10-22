@@ -136,10 +136,10 @@ export class PayPalService implements IPaymentGateway {
     }
   }
 
-  async verifyPayment(data: any): Promise<boolean> {
-    // PayPal doesn't need signature verification like Razorpay
-    // Verification is done during capture
-    return true;
+  async verifyPayment(
+    data: any,
+  ): Promise<{ success: boolean; transactionId?: string }> {
+    return { success: true, transactionId: data?.transactionId };
   }
 
   // Required by IPaymentGateway interface if not already present
