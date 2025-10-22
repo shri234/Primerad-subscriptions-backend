@@ -124,38 +124,22 @@ export class PathologyController {
     }
   }
 
-  @Get('by-module')
-  async getPathologiesByModule(@Query('moduleId') moduleId: string | string[]) {
+  @Get('getByModule')
+  async getPathologiesByModule(@Query('moduleId') moduleId: string) {
     try {
       if (!moduleId || (Array.isArray(moduleId) && moduleId.length === 0)) {
         throw new BadRequestException('Module ID(s) are required');
       }
 
-      let moduleIds: string[];
-      if (Array.isArray(moduleId)) {
-        moduleIds = moduleId.map((id: string) => id.trim());
-      } else if (typeof moduleId === 'string') {
-        if (moduleId.includes(',')) {
-          moduleIds = moduleId.split(',').map((id: string) => id.trim());
-        } else {
-          moduleIds = [moduleId.trim()];
-        }
-      } else {
-        throw new BadRequestException('Invalid format for Module ID(s)');
-      }
-
-      const pathologies =
-        await this.pathologyService.findByModuleIds(moduleIds);
+      const pathologies = await this.pathologyService.findByModuleIds(moduleId);
 
       if (!pathologies || pathologies.length === 0) {
-        this.logger.log(
-          `No pathologies found for module IDs: ${moduleIds.join(', ')}`,
-        );
+        this.logger.log(`No pathologies found for module ID: ${moduleId}`);
         throw new NotFoundException('No pathologies found for these modules');
       }
 
       this.logger.log(
-        `Successfully retrieved pathologies for module IDs: ${moduleIds.join(', ')}`,
+        `Successfully retrieved pathologies for module IDs: ${moduleId}`,
       );
       return {
         message: 'Got Pathologies for modules Successfully',

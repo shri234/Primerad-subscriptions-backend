@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Pathology, PathologyDocument } from './schema/pathology.schema';
@@ -116,7 +116,9 @@ export class PathologyService {
     return updatedPathology;
   }
 
-  async findByModuleIds(moduleIds: string[]): Promise<PathologyDocument[]> {
-    return this.pathologyModel.find({ moduleId: { $in: moduleIds } }).exec();
+  async findByModuleIds(moduleIds: string): Promise<PathologyDocument[]> {
+    return this.pathologyModel
+      .find({ moduleId: new mongoose.Types.ObjectId(moduleIds) })
+      .exec();
   }
 }

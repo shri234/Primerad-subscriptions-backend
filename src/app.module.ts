@@ -8,6 +8,7 @@ import { ModuleModule } from './modules/module/module.module';
 import { SessionModule } from './modules/sessions/session.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { ObservationModule } from './modules/observations/observations.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     SessionModule,
     AuthModule,
     PaymentModule,
+    ObservationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
