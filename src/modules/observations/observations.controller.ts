@@ -34,7 +34,7 @@ export class ObservationController {
     return this.observationService.getObservationsBySession(sessionId);
   }
 
-  @Get(':id')
+  @Get(':id  ')
   getObservationWithUserResponses(@Param('id') id: string) {
     return this.observationService.getObservationWithUserResponses(id);
   }
