@@ -8,7 +8,6 @@ export type SessionDocument = Session & Document;
   collection: 'sessions',
 })
 export class Session {
-  // Common fields for all session types
   @Prop({ required: true })
   title: string;
 
@@ -60,10 +59,12 @@ export class Session {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Faculty' }] })
   faculty?: Types.ObjectId[];
 
-  @Prop({ required: true, enum: ['Dicom', 'Vimeo', 'Zoom', 'Live'] })
+  @Prop({
+    required: true,
+    enum: ['Dicom', 'Vimeo', 'Zoom', 'Live', 'Assessment'],
+  })
   sessionType: string;
 
-  // Dicom-specific fields
   @Prop()
   isAssessment?: boolean;
 
@@ -79,7 +80,6 @@ export class Session {
   @Prop()
   caseAccessType?: string;
 
-  // Vimeo/Recorded Lecture specific fields
   @Prop()
   sessionDuration?: string;
 
@@ -92,7 +92,6 @@ export class Session {
   @Prop()
   videoType?: string;
 
-  // Live/Zoom Program specific fields
   @Prop()
   zoomMeetingId?: string;
 
@@ -111,14 +110,12 @@ export class Session {
   @Prop()
   liveProgramType?: string;
 
-  // Timestamps (automatically managed by mongoose)
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 export const SessionSchema = SchemaFactory.createForClass(Session);
 
-// Indexes for efficient queries
 SessionSchema.index({ sessionType: 1 });
 SessionSchema.index({ pathologyId: 1 });
 SessionSchema.index({ moduleId: 1 });
@@ -128,7 +125,6 @@ SessionSchema.index({ createdAt: -1 });
 SessionSchema.index({ startDate: 1 });
 SessionSchema.index({ faculty: 1 });
 
-// Compound indexes for common queries
 SessionSchema.index({ sessionType: 1, pathologyId: 1 });
 SessionSchema.index({ sessionType: 1, createdAt: -1 });
 SessionSchema.index({ isFree: 1, sessionType: 1 });
@@ -166,15 +162,10 @@ export class PlaybackProgress {
 export const PlaybackProgressSchema =
   SchemaFactory.createForClass(PlaybackProgress);
 
-// Indexes for efficient queries
 PlaybackProgressSchema.index({ userId: 1, sessionId: 1 }, { unique: true });
 PlaybackProgressSchema.index({ userId: 1, lastWatchedAt: -1 });
 PlaybackProgressSchema.index({ sessionId: 1 });
 
-/**
- * UserSessionView Schema
- * Tracks user views and completion status for sessions
- */
 export type UserSessionViewDocument = UserSessionView & Document;
 
 @Schema({ timestamps: true })

@@ -6,6 +6,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Observation, ObservationDocument } from './schema/observation.schema';
+import {
+  UserObservation,
+  UserObservationDocument,
+} from './schema/user-observation.schema';
 import { Session, SessionDocument } from '../sessions/schema/session.schema';
 import { CreateObservationDto } from './dto/create-observation.dto';
 import { FacultyObservationDto } from './dto/faculty-observation.dto';
@@ -16,13 +20,16 @@ export class ObservationService {
   constructor(
     @InjectModel(Observation.name)
     private observationModel: Model<ObservationDocument>,
-    @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
+    @InjectModel(UserObservation.name)
+    private userObservationModel: Model<UserObservationDocument>,
+    @InjectModel(Session.name)
+    private sessionModel: Model<SessionDocument>,
   ) {}
 
-  // Admin creates observation question
   async createObservation(createDto: CreateObservationDto) {
     const session = await this.sessionModel.findById(createDto.sessionId);
     if (!session) throw new BadRequestException('Session not found');
+
     if (session.sessionType !== 'Dicom')
       throw new BadRequestException(
         'Observations can only be added to DICOM sessions',
@@ -37,37 +44,50 @@ export class ObservationService {
     return observation.save();
   }
 
-  // Faculty adds answer
   async addFacultyObservation(id: string, facultyDto: FacultyObservationDto) {
     const obs = await this.observationModel.findById(id);
-    if (!obs) throw new NotFoundException('Observation question not found');
+    if (!obs) throw new NotFoundException('Observation not found');
 
     obs.facultyObservation = facultyDto.facultyObservation;
     return obs.save();
   }
 
-  // User adds their observation
-  async addUserObservation(id: string, userDto: UserObservationDto) {
-    const obs = await this.observationModel.findById(id);
-    if (!obs) throw new NotFoundException('Observation question not found');
+  async addUserObservation(observationId: string, userDto: UserObservationDto) {
+    const observation = await this.observationModel.findById(observationId);
+    if (!observation) throw new NotFoundException('Observation not found');
 
-    obs.userObservations.push({
-      userObservation: userDto.userObservation,
+    const userObservation = new this.userObservationModel({
+      observationId: new Types.ObjectId(observationId),
       userId: new Types.ObjectId(userDto.userId),
-      createdAt: new Date(),
+      userObservation: userDto.userObservation,
     });
-    return obs.save();
+
+    return userObservation.save();
   }
 
-  // Get all observations for a session
   async getObservationsBySession(sessionId: string) {
     return this.observationModel.find({
       sessionId: new Types.ObjectId(sessionId),
     });
   }
 
-  // Get single observation by ID
-  async getObservation(id: string) {
-    return this.observationModel.findById(id);
+  async getObservationWithUserResponses(observationId: string) {
+    const observation = await this.observationModel.findById(observationId);
+    if (!observation) throw new NotFoundException('Observation not found');
+
+    const userResponses = await this.userObservationModel
+      .find({ observationId: new Types.ObjectId(observationId) })
+      .populate('userId', 'name email');
+
+    return {
+      ...observation.toObject(),
+      userResponses,
+    };
+  }
+
+  async getUserObservations(userId: string) {
+    return this.userObservationModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .populate('observationId', 'observationText module');
   }
 }

@@ -8,13 +8,11 @@ import { UserObservationDto } from './dto/user-observation.dto';
 export class ObservationController {
   constructor(private readonly observationService: ObservationService) {}
 
-  // Admin creates observation question
   @Post()
-  create(@Body() createDto: CreateObservationDto) {
+  createObservation(@Body() createDto: CreateObservationDto) {
     return this.observationService.createObservation(createDto);
   }
 
-  // Faculty adds answer
   @Patch(':id/faculty')
   addFacultyObservation(
     @Param('id') id: string,
@@ -23,21 +21,26 @@ export class ObservationController {
     return this.observationService.addFacultyObservation(id, dto);
   }
 
-  // User adds observation
-  @Patch(':id/user')
-  addUserObservation(@Param('id') id: string, @Body() dto: UserObservationDto) {
-    return this.observationService.addUserObservation(id, dto);
+  @Post(':id/user')
+  addUserObservation(
+    @Param('id') observationId: string,
+    @Body() dto: UserObservationDto,
+  ) {
+    return this.observationService.addUserObservation(observationId, dto);
   }
 
-  // Get all observations for a session
   @Get('session/:sessionId')
-  getBySession(@Param('sessionId') sessionId: string) {
+  getObservationsBySession(@Param('sessionId') sessionId: string) {
     return this.observationService.getObservationsBySession(sessionId);
   }
 
-  // Get single observation
   @Get(':id')
-  getOne(@Param('id') id: string) {
-    return this.observationService.getObservation(id);
+  getObservationWithUserResponses(@Param('id') id: string) {
+    return this.observationService.getObservationWithUserResponses(id);
+  }
+
+  @Get('user/:userId')
+  getUserObservations(@Param('userId') userId: string) {
+    return this.observationService.getUserObservations(userId);
   }
 }

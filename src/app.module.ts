@@ -9,6 +9,8 @@ import { SessionModule } from './modules/sessions/session.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ObservationModule } from './modules/observations/observations.module';
+import { AssessmentModule } from './modules/assessment/assessment.module';
+import { ReviewsModule } from './modules/review/review.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { ObservationModule } from './modules/observations/observations.module';
     AuthModule,
     PaymentModule,
     ObservationModule,
+    AssessmentModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

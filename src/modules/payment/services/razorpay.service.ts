@@ -108,7 +108,6 @@ export class RazorpayService {
     if (isValid && paymentDetails?.status === 'captured')
       transactionStatus = 'captured';
 
-    // Save transaction record
     const transaction = await this.transactionModel.create({
       userId: new Types.ObjectId(userId),
       packageId: new Types.ObjectId(packageId),
