@@ -52,13 +52,17 @@ export class ObservationService {
     return obs.save();
   }
 
-  async addUserObservation(observationId: string, userDto: UserObservationDto) {
+  async addUserObservation(
+    observationId: string,
+    userDto: UserObservationDto,
+    userId: string,
+  ) {
     const observation = await this.observationModel.findById(observationId);
     if (!observation) throw new NotFoundException('Observation not found');
 
     const userObservation = new this.userObservationModel({
       observationId: new Types.ObjectId(observationId),
-      userId: new Types.ObjectId(userDto.userId),
+      userId: userId,
       userObservation: userDto.userObservation,
     });
 

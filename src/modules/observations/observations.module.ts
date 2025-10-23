@@ -8,6 +8,7 @@ import {
   UserObservationSchema,
 } from './schema/user-observation.schema';
 import { Session, SessionSchema } from '../sessions/schema/session.schema';
+import { User, UserSchema } from '../user/schema/user.schema';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { Session, SessionSchema } from '../sessions/schema/session.schema';
       { name: Observation.name, schema: ObservationSchema },
       { name: UserObservation.name, schema: UserObservationSchema },
       { name: Session.name, schema: SessionSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [ObservationController],

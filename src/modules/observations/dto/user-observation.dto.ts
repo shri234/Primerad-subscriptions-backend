@@ -4,8 +4,4 @@ export class UserObservationDto {
   @IsString()
   @IsNotEmpty()
   userObservation: string;
-
-  @IsString()
-  @IsNotEmpty()
-  userId: string;
 }
