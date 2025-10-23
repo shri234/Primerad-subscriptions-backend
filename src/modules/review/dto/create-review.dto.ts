@@ -1,17 +1,16 @@
 import {
   IsMongoId,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
 export class CreateReviewDto {
   @IsMongoId()
-  @IsNotEmpty()
-  itemId: string;
+  sessionId: string;
 
   @IsNumber()
   @Min(1)
@@ -20,5 +19,6 @@ export class CreateReviewDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   comment?: string;
 }

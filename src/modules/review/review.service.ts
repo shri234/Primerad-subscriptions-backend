@@ -19,30 +19,35 @@ export class ReviewsService {
     @InjectModel(Session.name) private readonly sessionModel: Model<Session>,
   ) {}
 
-  async getReviewsByItemId(itemId: string) {
+  async getReviewsBySessionId(sessionId: string) {
     return this.reviewModel
-      .find({ itemId: new Types.ObjectId(itemId) })
+      .find({ sessionId: new Types.ObjectId(sessionId) })
       .populate('userId')
       .sort({ createdAt: -1 })
       .limit(4)
       .exec();
   }
 
-  async getUserReviewForItem(userId: string, itemId: string) {
-    return this.reviewModel.findOne({ userId, itemId }).exec();
+  async getUserReviewForSession(userId: string, sessionId: string) {
+    return this.reviewModel.findOne({ userId, sessionId }).exec();
   }
 
   async createReview(userId: string, dto: CreateReviewDto) {
     const existing = await this.reviewModel.findOne({
-      itemId: dto.itemId,
+      sessionId: new Types.ObjectId(dto.sessionId),
       userId,
     });
     if (existing) {
-      throw new BadRequestException('You have already reviewed this item.');
+      throw new BadRequestException('You have already reviewed this session.');
     }
 
-    const review = await this.reviewModel.create({ ...dto, userId });
-    await this.updateAverageRating(dto.itemId);
+    const review = await this.reviewModel.create({
+      ...dto,
+      sessionId: new Types.ObjectId(dto.sessionId),
+      userId,
+    });
+
+    await this.updateAverageRating(dto.sessionId);
     return review;
   }
 
@@ -57,7 +62,7 @@ export class ReviewsService {
     review.updatedAt = new Date();
 
     await review.save();
-    await this.updateAverageRating(review.itemId.toString());
+    await this.updateAverageRating(review.sessionId.toString());
     return review;
   }
 
@@ -68,13 +73,14 @@ export class ReviewsService {
       throw new ForbiddenException('Unauthorized to delete this review.');
 
     await review.deleteOne();
-    await this.updateAverageRating(review.itemId.toString());
+    await this.updateAverageRating(review.sessionId.toString());
     return { message: 'Review deleted successfully.' };
   }
 
-  private async updateAverageRating(itemId: string) {
+  private async updateAverageRating(sessionId: string) {
+    console.log('inside', sessionId, typeof sessionId);
     const stats = await this.reviewModel.aggregate([
-      { $match: { itemId: new Types.ObjectId(itemId) } },
+      { $match: { sessionId: new Types.ObjectId(sessionId) } },
       {
         $group: {
           _id: null,
@@ -87,7 +93,9 @@ export class ReviewsService {
     const averageRating = stats.length > 0 ? stats[0].averageRating : 0;
     const numOfReviews = stats.length > 0 ? stats[0].numOfReviews : 0;
 
-    await this.sessionModel.findByIdAndUpdate(itemId, {
+    console.log(averageRating, numOfReviews);
+    console.log(await this.sessionModel.findById(sessionId));
+    await this.sessionModel.findByIdAndUpdate(sessionId, {
       averageRating,
       numOfReviews,
     });

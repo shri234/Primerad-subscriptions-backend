@@ -110,6 +110,12 @@ export class Session {
   @Prop()
   liveProgramType?: string;
 
+  @Prop({ type: Number, default: 0 })
+  averageRating: number;
+
+  @Prop({ type: Number, default: 0 })
+  numOfReviews: number;
+
   createdAt?: Date;
   updatedAt?: Date;
 }

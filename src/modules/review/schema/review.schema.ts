@@ -6,7 +6,7 @@ export type ReviewDocument = Review & Document;
 @Schema({ timestamps: true, collection: 'reviews' })
 export class Review {
   @Prop({ type: Types.ObjectId, ref: 'Session', required: true })
-  itemId: Types.ObjectId;
+  sessionId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
@@ -26,4 +26,4 @@ export class Review {
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);
 
-ReviewSchema.index({ itemId: 1, userId: 1 }, { unique: true });
+ReviewSchema.index({ sessionId: 1, userId: 1 }, { unique: true });
