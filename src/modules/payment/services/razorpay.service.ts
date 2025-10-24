@@ -66,7 +66,6 @@ export class RazorpayService {
       metadata: data.metadata ?? {},
     });
 
-    // Save transaction as "created"
     await this.transactionModel.create({
       userId: new Types.ObjectId(data.userId),
       packageId: new Types.ObjectId(data.packageId),

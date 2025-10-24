@@ -25,7 +25,6 @@ export class SubscriptionService {
   ) {}
 
   async createSubscription(data: CreateSubscriptionData) {
-    // Validate package and user existence
     const pkg = await this.packageModel.findById(data.packageId);
     const user = await this.userModel.findById(data.userId);
 
@@ -37,7 +36,6 @@ export class SubscriptionService {
       throw new BadRequestException('Package is not active');
     }
 
-    // Find the selected pricing option based on billing cycle
     const selectedPricing = pkg.pricingOptions.find(
       (option) => option.billingCycle === data.billingCycle,
     );
@@ -242,7 +240,6 @@ export class SubscriptionService {
       .exec();
   }
 
-  // Helper method to calculate expiry date based on billing cycle
   private calculateExpiryDate(startDate: Date, billingCycle: string): Date {
     const expiryDate = new Date(startDate);
 
@@ -266,7 +263,6 @@ export class SubscriptionService {
     return expiryDate;
   }
 
-  // Get subscription statistics
   async getSubscriptionStats() {
     const stats = await this.subscriptionModel.aggregate([
       {
