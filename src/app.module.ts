@@ -11,6 +11,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { ObservationModule } from './modules/observations/observations.module';
 import { AssessmentModule } from './modules/assessment/assessment.module';
 import { ReviewsModule } from './modules/review/review.module';
+import { FacultyModule } from './modules/faculty/faculty.module';
 
 @Module({
   imports: [
