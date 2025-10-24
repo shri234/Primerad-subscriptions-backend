@@ -64,6 +64,7 @@ export class ModuleService {
       {
         $project: {
           moduleName: 1,
+          imageUrl: 1,
           totalPathologiesCount: 1,
           randomPathologyNames: {
             $let: {
