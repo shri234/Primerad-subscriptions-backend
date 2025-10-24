@@ -240,7 +240,6 @@ export class SessionService {
     const lecturesData = lectures.map((l) => l.toObject() as ISession);
     const processed = applySessionAccessControl(lecturesData, userAccess, 2);
 
-    // Add full image domain before returning
     return this.appendImageDomainToMany(processed);
   }
 
@@ -256,7 +255,7 @@ export class SessionService {
           .limit(8),
         this.sessionModel
           .find({ sessionType: 'Vimeo' })
-          .populate(populateFacultyQuery)
+          .populate(populateFacultyQuery)    
           .sort({ createdAt: -1 })
           .limit(7),
         this.sessionModel
@@ -377,6 +376,74 @@ export class SessionService {
 
     return applySessionAccessControl(result, userAccess, 2);
   }
+
+async getRecommendedSessions(
+  userAccess: IUserAccess | null,
+  userId: string,
+  limit: number = 10,
+): Promise<any> {
+  const watchedViews = await this.userSessionViewModel
+    .find({ userId })
+    .sort({ lastViewedAt: -1 })
+    .limit(20);
+
+  // safe fallback user access object
+  const safeUserAccess: IUserAccess = userAccess ?? {
+    isLoggedIn: false,
+    isSubscribed: false,
+  };
+
+  if (!watchedViews.length) {
+    const fallbackDocs = await this.sessionModel
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    const fallback = fallbackDocs.map((doc) => doc.toObject() as ISession);
+    const processed = applySessionAccessControl(fallback, safeUserAccess, 2);
+    return this.appendImageDomainToMany(processed);
+  }
+
+  const watchedSessionIds = watchedViews.map((v) => v.sessionId);
+
+  const watchedSessionsDocs = await this.sessionModel.find({
+    _id: { $in: watchedSessionIds },
+  });
+
+  const watchedSessions = watchedSessionsDocs.map(
+    (doc) => doc.toObject() as ISession,
+  );
+
+  const pathologyIds = watchedSessions.map((s) => s.pathologyId).filter(Boolean);
+  const difficultyLevels = watchedSessions.map((s) => s.difficulty).filter(Boolean);
+  const facultyIds = watchedSessions.flatMap((s) => s.faculty || []).filter(Boolean);
+
+  const query: any = {
+    _id: { $nin: watchedSessionIds },
+    $or: [
+      { pathologyId: { $in: pathologyIds } },
+      { difficulty: { $in: difficultyLevels } },
+      { faculty: { $in: facultyIds } },
+    ],
+  };
+
+  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+
+  const recommendedDocs = await this.sessionModel
+    .find(query)
+    .populate(populateFacultyQuery)
+    .sort({ createdAt: -1 })
+    .limit(limit);
+
+  const recommended = recommendedDocs.map(
+    (doc) => doc.toObject() as ISession,
+  );
+
+  const processed = applySessionAccessControl(recommended, safeUserAccess, 2);
+  return this.appendImageDomainToMany(processed);
+}
+
+
 
   async getWatchedSessions(
     userId: string,

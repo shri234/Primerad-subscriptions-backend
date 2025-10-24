@@ -134,6 +134,48 @@ export class SessionController {
     }
   }
 
+   @Get('getRecommendedSessions')
+@UseGuards(OptionalAuthGuard, SessionAccessGuard)
+async getRecommendedSessions(
+  @GetUser() user: any,
+  @Query('limit') limit = 10,
+) {
+  try {
+    const userId = user?._id?.toString() || null;
+
+    if (!userId) {
+      throw new HttpException(
+        {
+          success: false,
+          message: 'User not authenticated — cannot generate recommendations',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    // No userAccess concept — just pass null
+    const sessions = await this.sessionService.getRecommendedSessions(
+      null,
+      userId,
+      limit,
+    );
+
+    return {
+      success: true,
+      message: 'Recommended sessions fetched successfully',
+      data: sessions,
+    };
+  } catch (error: any) {
+    this.logger.error('Error getting recommended sessions:', error);
+    throw new HttpException(
+      { success: false, message: error.message },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+
+
   @Delete('delete')
   @UseGuards(AuthGuard)
   async deleteSession(
@@ -142,13 +184,9 @@ export class SessionController {
     @GetUser() user: UserDocument,
   ) {
     try {
-      // FIX TS2554: Assuming the service method should only take sessionId and sessionType.
-      // If user._id is required, the service method signature must be fixed in SessionService.
-      // Based on the error, removing user._id.toString() from the call:
       await this.sessionService.deleteSession(
         sessionId,
         sessionType,
-        // user._id.toString(), // REMOVED to satisfy TS2554
       );
       return { success: true, message: 'Session deleted successfully' };
     } catch (error: any) {

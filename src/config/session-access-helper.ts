@@ -12,6 +12,7 @@ export interface ISession extends Document {
   difficulty?: string;
   moduleName?: string;
   pathologyName?: string;
+  pathologyId?: Types.ObjectId
   createdAt?: Date;
   isFree?: boolean;
   sessionType?: string;
