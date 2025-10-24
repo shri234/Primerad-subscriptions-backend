@@ -198,7 +198,9 @@ export class SessionService {
       totalCount = await this.sessionModel.countDocuments(filter);
     }
 
-    return { sessions, totalCount, page: pageNum, limit: limitNum };
+    const data = { sessions, totalCount, page: pageNum, limit: limitNum };
+    data.sessions = this.appendImageDomainToMany(data.sessions);
+    return data;
   }
 
   async getTopRatedCases(
@@ -223,7 +225,8 @@ export class SessionService {
     }
 
     const casesData = cases.map((c) => c.toObject() as ISession);
-    return applySessionAccessControl(casesData, userAccess, 2);
+    const data = applySessionAccessControl(casesData, userAccess, 2);
+    return this.appendImageDomainToMany(data);
   }
 
   async getTopRatedLectures(userAccess: IUserAccess): Promise<any> {
@@ -235,7 +238,10 @@ export class SessionService {
       .limit(12);
 
     const lecturesData = lectures.map((l) => l.toObject() as ISession);
-    return applySessionAccessControl(lecturesData, userAccess, 2);
+    const processed = applySessionAccessControl(lecturesData, userAccess, 2);
+
+    // Add full image domain before returning
+    return this.appendImageDomainToMany(processed);
   }
 
   async getRecentItems(userAccess: IUserAccess): Promise<any> {
@@ -272,7 +278,8 @@ export class SessionService {
       return timeB - timeA;
     });
 
-    return applySessionAccessControl(sessions, userAccess, 2);
+    const processed = applySessionAccessControl(sessions, userAccess, 2);
+    return this.appendImageDomainToMany(processed);
   }
 
   async getSessionsByDifficulty(
@@ -483,7 +490,6 @@ export class SessionService {
       imageUrl_522x760,
     };
 
-    // Verify the session exists and has the correct type
     const existingSession = await this.sessionModel.findById(sessionId);
     if (!existingSession) {
       throw new NotFoundException('Session not found for update');
@@ -600,6 +606,41 @@ export class SessionService {
       { $inc: { viewCount: 1 }, $set: { lastViewedAt: new Date() } },
       { upsert: true, new: true },
     );
+  }
+
+  private appendImageDomain(session: any): any {
+    const domain = this.configService.get<string>('BACKEND_IMAGE_DOMAIN');
+
+    if (!session) return session;
+
+    if (Array.isArray(session.faculty)) {
+      session.faculty = session.faculty.map((f) => {
+        if (f?.image && !f.image.startsWith('http')) {
+          f.image = `${domain}${f.image}`;
+        }
+        return f;
+      });
+    }
+
+    if (
+      session.imageUrl_1920x1080 &&
+      !session.imageUrl_1920x1080.startsWith('http')
+    ) {
+      session.imageUrl_1920x1080 = `${domain}${session.imageUrl_1920x1080}`;
+    }
+
+    if (
+      session.imageUrl_522x760 &&
+      !session.imageUrl_522x760.startsWith('http')
+    ) {
+      session.imageUrl_522x760 = `${domain}${session.imageUrl_522x760}`;
+    }
+
+    return session;
+  }
+
+  private appendImageDomainToMany(sessions: any[]): any[] {
+    return sessions.map((s) => this.appendImageDomain(s));
   }
 
   async generateAIComparisonStream(
