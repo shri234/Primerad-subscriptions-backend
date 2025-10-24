@@ -38,6 +38,7 @@ import { FacultyModule } from './modules/faculty/faculty.module';
     ObservationModule,
     AssessmentModule,
     ReviewsModule,
+    FacultyModule,
   ],
   controllers: [AppController],
   providers: [AppService],
