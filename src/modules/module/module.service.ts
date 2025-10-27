@@ -12,6 +12,7 @@ import type { Express } from 'express';
 import { Module as ModuleEntity, ModuleDocument } from './schema/module.schema';
 import { CreateModuleDto } from './dto/create-module.dto';
 import { UpdateModuleDto } from './dto/update-module.dto';
+import { ImageDomainHelper } from 'src/config/image-domain.util';
 
 interface ModuleWithPathologyCount {
   _id: string;
@@ -27,43 +28,19 @@ interface ModuleWithSessionCount extends ModuleWithPathologyCount {
 @Injectable()
 export class ModuleService {
   private readonly logger = new Logger(ModuleService.name);
+   private readonly imageHelper: ImageDomainHelper;
 
   constructor(
     @InjectModel(ModuleEntity.name)
     private moduleModel: Model<ModuleDocument>,
     private configService: ConfigService,
-  ) {}
-
-  // ✅ Helper to prepend image domain
-  private appendImageDomain(module: any): any {
-    const domain = this.configService.get<string>('BACKEND_IMAGE_DOMAIN');
-    if (!module) return module;
-
-    if (module.imageUrl && !module.imageUrl.startsWith('http')) {
-      module.imageUrl = `${domain}${module.imageUrl}`;
-    }
-
-    if (Array.isArray(module.faculty)) {
-      module.faculty = module.faculty.map((f) => {
-        if (f?.image && !f.image.startsWith('http')) {
-          f.image = `${domain}${f.image}`;
-        }
-        return f;
-      });
-    }
-
-    if (Array.isArray(module.sessions)) {
-      module.sessions = module.sessions.map((s) => this.appendImageDomain(s));
-    }
-
-    return module;
+    
+  ) {
+     const domain:string = this.configService.get<string>('BACKEND_IMAGE_DOMAIN') ?? '';
+    this.imageHelper = new ImageDomainHelper(domain);
   }
 
-  private appendImageDomainToMany(modules: any[]): any[] {
-    return modules.map((m) => this.appendImageDomain(m));
-  }
 
-  // ✅ Unified response wrapper
   private successResponse(message: string, data: any) {
     return { success: true, message, data };
   }
@@ -74,7 +51,7 @@ export class ModuleService {
 
   async findAll() {
     const modules = await this.moduleModel.find({}).exec();
-    const updated = this.appendImageDomainToMany(modules);
+    const updated = this.imageHelper.appendImageDomainToMany(modules);
     return this.successResponse('Modules fetched successfully', updated);
   }
 
@@ -84,7 +61,7 @@ export class ModuleService {
       throw new NotFoundException(this.errorResponse('Module Not Found'));
     }
 
-    const updated = this.appendImageDomain(module);
+    const updated = this.imageHelper.appendImageDomain(module);
     return this.successResponse('Module fetched successfully', updated);
   }
 
@@ -125,7 +102,7 @@ export class ModuleService {
       },
     ]);
 
-    const updated = this.appendImageDomainToMany(modules);
+    const updated = this.imageHelper.appendImageDomainToMany(modules);
     return this.successResponse('Modules with pathology count fetched', updated);
   }
 
@@ -197,7 +174,7 @@ export class ModuleService {
       },
     ]);
 
-    const updated = this.appendImageDomainToMany(modules);
+    const updated = this.imageHelper.appendImageDomainToMany(modules);
     return this.successResponse('Modules with session count fetched', updated);
   }
 
@@ -217,7 +194,7 @@ export class ModuleService {
       throw new BadRequestException(this.errorResponse('Bad Request'));
     }
 
-    const updated = this.appendImageDomain(savedModule);
+    const updated = this.imageHelper.appendImageDomain(savedModule);
     return this.successResponse('Module created successfully', updated);
   }
 
@@ -240,7 +217,7 @@ export class ModuleService {
       throw new NotFoundException(this.errorResponse('Module Not Found'));
     }
 
-    const updated = this.appendImageDomain(updatedModule);
+    const updated = this.imageHelper.appendImageDomain(updatedModule);
     return this.successResponse('Module updated successfully', updated);
   }
 }
