@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import sharp from 'sharp';
 import * as fs from 'fs';
 import * as jwt from 'jsonwebtoken';
@@ -281,64 +281,67 @@ export class SessionService {
     return this.appendImageDomainToMany(processed);
   }
 
-  async getSessionsByDifficulty(
-    pathologyId: string,
-    page: number,
-    limit: number,
-    userAccess: IUserAccess,
-  ): Promise<any> {
-    const pageNum = Math.max(page, 1);
-    const limitNum = Math.max(limit, 1);
-    const skip = (pageNum - 1) * limitNum;
+async getSessionsByDifficulty(
+  pathologyId: string,
+  page: number,
+  limit: number,
+  userAccess: IUserAccess | null, 
+): Promise<any> {
+  const pageNum = Math.max(page, 1);
+  const limitNum = Math.max(limit, 1);
+  const skip = (pageNum - 1) * limitNum;
 
-    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
-    const difficultyFilter = { pathologyId };
+  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+  const difficultyFilter = { pathologyId:new Types.ObjectId(pathologyId) };
 
-    const allSessions = await this.sessionModel
-      .find(difficultyFilter)
-      .populate(populateFacultyQuery)
-      .sort({ createdAt: -1 });
+  const allSessions = await this.sessionModel
+    .find(difficultyFilter)
+    .populate(populateFacultyQuery)
+    .sort({ createdAt: -1 });
 
-    const dicomCount = allSessions.filter(
-      (s) => s.sessionType === 'Dicom',
-    ).length;
-    const recordedCount = allSessions.filter(
-      (s) => s.sessionType === 'Vimeo',
-    ).length;
-    const liveCount = allSessions.filter(
-      (s) => s.sessionType === 'Live',
-    ).length;
+  const dicomCount = allSessions.filter((s) => s.sessionType === 'Dicom').length;
+  const recordedCount = allSessions.filter((s) => s.sessionType === 'Vimeo').length;
+  const liveCount = allSessions.filter((s) => s.sessionType === 'Live').length;
 
-    const combinedSessions: ISession[] = allSessions.map(
-      (s) => s.toObject() as ISession,
-    );
+  const combinedSessions: ISession[] = allSessions.map(
+    (s) => s.toObject() as ISession,
+  );
 
-    combinedSessions.sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
+  combinedSessions.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
 
-    const filteredSessions = applySessionAccessControl(
-      combinedSessions,
-      userAccess,
-      2,
-    );
-    const totalCount = filteredSessions.length;
-    const paginatedSessions = filteredSessions.slice(skip, skip + limitNum);
+  let filteredSessions: ISession[];
+  if (userAccess) {
+    filteredSessions = applySessionAccessControl(
+  combinedSessions,
+  userAccess,
+  2,
+) as unknown as ISession[];
 
-    return {
-      sessions: paginatedSessions,
-      totalCount,
-      page: pageNum,
-      limit: limitNum,
-      breakdown: {
-        dicomCount,
-        recordedCount,
-        liveCount,
-      },
-    };
+  } else {
+    // 🚀 No userAccess → show only top 3 sessions as preview
+    filteredSessions = combinedSessions.slice(0, 3);
   }
+
+  const totalCount = filteredSessions.length;
+  const paginatedSessions = filteredSessions.slice(skip, skip + limitNum);
+
+  return {
+    sessions: paginatedSessions,
+    totalCount,
+    page: pageNum,
+    limit: limitNum,
+    breakdown: {
+      dicomCount,
+      recordedCount,
+      liveCount,
+    },
+  };
+}
+
 
   async getTopWatchedSessions(userAccess: IUserAccess): Promise<any> {
     const topSessions = await this.userSessionViewModel.aggregate([

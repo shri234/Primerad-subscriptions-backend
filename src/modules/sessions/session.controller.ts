@@ -222,30 +222,42 @@ export class SessionController {
     }
   }
 
-  @Get('getSessionByDifficulty')
-  @UseGuards(OptionalAuthGuard, SessionAccessGuard)
-  async getSessionsByDifficulty(
-    @Query('pathologyId') pathologyId: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @GetUser() user: any,
-  ) {
-    try {
-      const result = await this.sessionService.getSessionsByDifficulty(
-        pathologyId,
-        page,
-        limit,
-        user._id.toString(), // TS18046 resolved by Guard/Decorator fix
-      );
-      return { success: true, data: result };
-    } catch (error: any) {
-      this.logger.error('Error getting sessions by difficulty:', error);
-      throw new HttpException(
-        { success: false, message: error.message },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+@Get('getSessionByDifficulty')
+@UseGuards(OptionalAuthGuard, SessionAccessGuard)
+async getSessionsByDifficulty(
+  @Query('pathologyId') pathologyId: string,
+  @Query('page') page = 1,
+  @Query('limit') limit = 10,
+  @GetUser() user?: any,
+) {
+  try {
+    // 🧠 Build userAccess object correctly based on IUserAccess interface
+    const userAccess = user
+      ? {
+          _id: user._id.toString(),
+          isLoggedIn: true,
+          isSubscribed: user.isSubscribed ?? false, // fallback if missing
+        }
+      : null;
+
+    const result = await this.sessionService.getSessionsByDifficulty(
+      pathologyId,
+      Number(page),
+      Number(limit),
+      userAccess,
+    );
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    this.logger.error('Error getting sessions by difficulty:', error);
+    throw new HttpException(
+      { success: false, message: error.message },
+      HttpStatus.BAD_REQUEST,
+    );
   }
+}
+
+
 
   @Get('getRecentItems')
   @UseGuards(OptionalAuthGuard, SessionAccessGuard)
