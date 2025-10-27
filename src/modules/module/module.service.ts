@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import type { Express } from 'express';
+
 import { Module as ModuleEntity, ModuleDocument } from './schema/module.schema';
 import { CreateModuleDto } from './dto/create-module.dto';
 import { UpdateModuleDto } from './dto/update-module.dto';
-import type { Express } from 'express';
 
 interface ModuleWithPathologyCount {
   _id: string;
@@ -29,23 +31,64 @@ export class ModuleService {
   constructor(
     @InjectModel(ModuleEntity.name)
     private moduleModel: Model<ModuleDocument>,
+    private configService: ConfigService,
   ) {}
 
-  async findAll(): Promise<ModuleDocument[]> {
-    return this.moduleModel.find({}).exec();
-  }
+  // ✅ Helper to prepend image domain
+  private appendImageDomain(module: any): any {
+    const domain = this.configService.get<string>('BACKEND_IMAGE_DOMAIN');
+    if (!module) return module;
 
-  async findById(moduleId: string): Promise<ModuleDocument> {
-    const module = await this.moduleModel.findById(moduleId).exec();
+    if (module.imageUrl && !module.imageUrl.startsWith('http')) {
+      module.imageUrl = `${domain}${module.imageUrl}`;
+    }
 
-    if (!module) {
-      throw new NotFoundException('Module Not Found');
+    if (Array.isArray(module.faculty)) {
+      module.faculty = module.faculty.map((f) => {
+        if (f?.image && !f.image.startsWith('http')) {
+          f.image = `${domain}${f.image}`;
+        }
+        return f;
+      });
+    }
+
+    if (Array.isArray(module.sessions)) {
+      module.sessions = module.sessions.map((s) => this.appendImageDomain(s));
     }
 
     return module;
   }
 
-  async getModulesWithPathologyCount(): Promise<ModuleWithPathologyCount[]> {
+  private appendImageDomainToMany(modules: any[]): any[] {
+    return modules.map((m) => this.appendImageDomain(m));
+  }
+
+  // ✅ Unified response wrapper
+  private successResponse(message: string, data: any) {
+    return { success: true, message, data };
+  }
+
+  private errorResponse(message: string) {
+    return { success: false, message };
+  }
+
+  async findAll() {
+    const modules = await this.moduleModel.find({}).exec();
+    const updated = this.appendImageDomainToMany(modules);
+    return this.successResponse('Modules fetched successfully', updated);
+  }
+
+  async findById(moduleId: string) {
+    const module = await this.moduleModel.findById(moduleId).exec();
+    if (!module) {
+      throw new NotFoundException(this.errorResponse('Module Not Found'));
+    }
+
+    const updated = this.appendImageDomain(module);
+    return this.successResponse('Module fetched successfully', updated);
+  }
+
+  async getModulesWithPathologyCount() {
     const modules = await this.moduleModel.aggregate([
       {
         $lookup: {
@@ -75,20 +118,18 @@ export class ModuleService {
                   },
                 },
               },
-              in: {
-                $slice: ['$pathologyNames', '$$randomIndex', 3],
-              },
+              in: { $slice: ['$pathologyNames', '$$randomIndex', 3] },
             },
           },
         },
       },
     ]);
 
-    console.log(modules);
-    return modules;
+    const updated = this.appendImageDomainToMany(modules);
+    return this.successResponse('Modules with pathology count fetched', updated);
   }
 
-  async getModulesWithSessionCount(): Promise<ModuleWithSessionCount[]> {
+  async getModulesWithSessionCount() {
     const modules = await this.moduleModel.aggregate([
       {
         $lookup: {
@@ -149,22 +190,18 @@ export class ModuleService {
                   },
                 },
               },
-              in: {
-                $slice: ['$pathologyNames', '$$randomIndex', 3],
-              },
+              in: { $slice: ['$pathologyNames', '$$randomIndex', 3] },
             },
           },
         },
       },
     ]);
 
-    return modules;
+    const updated = this.appendImageDomainToMany(modules);
+    return this.successResponse('Modules with session count fetched', updated);
   }
 
-  async create(
-    createModuleDto: CreateModuleDto,
-    file?: Express.Multer.File,
-  ): Promise<ModuleDocument> {
+  async create(createModuleDto: CreateModuleDto, file?: Express.Multer.File) {
     const imagePath = file ? `/uploads/${file.filename}` : null;
 
     const module = new this.moduleModel({
@@ -177,16 +214,14 @@ export class ModuleService {
 
     if (!savedModule) {
       this.logger.log('Input fields are not all required');
-      throw new BadRequestException('Bad Request');
+      throw new BadRequestException(this.errorResponse('Bad Request'));
     }
 
-    return savedModule;
+    const updated = this.appendImageDomain(savedModule);
+    return this.successResponse('Module created successfully', updated);
   }
 
-  async update(
-    moduleId: string,
-    updateModuleDto: UpdateModuleDto,
-  ): Promise<ModuleDocument> {
+  async update(moduleId: string, updateModuleDto: UpdateModuleDto) {
     const updatedData: any = {};
 
     if (updateModuleDto.moduleName) {
@@ -202,9 +237,10 @@ export class ModuleService {
       .exec();
 
     if (!updatedModule) {
-      throw new NotFoundException('Module Not Found');
+      throw new NotFoundException(this.errorResponse('Module Not Found'));
     }
 
-    return updatedModule;
+    const updated = this.appendImageDomain(updatedModule);
+    return this.successResponse('Module updated successfully', updated);
   }
 }

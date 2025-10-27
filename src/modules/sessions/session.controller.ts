@@ -24,6 +24,9 @@ import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { SessionAccessGuard } from '../auth/guards/session-access.guard';
 import type { UserDocument } from '../user/schema/user.schema';
 import { GetUser } from '../auth/decorators/get-user.decorator';
+import type { Response } from 'express';
+import { Res } from '@nestjs/common'; // already present
+
 
 @Controller('sessions')
 export class SessionController {
@@ -416,4 +419,47 @@ async getSessionsByDifficulty(
       );
     }
   }
+
+  @Post('generateAIComparison')
+@UseGuards(AuthGuard)
+async generateAIComparison(
+  @Body('userObservations') userObservations: string,
+  @Body('facultyObservations') facultyObservations: string,
+  @Res() res: Response,
+) {
+ try {
+    const stream = await this.sessionService.generateAIComparisonStream(
+      userObservations,
+      facultyObservations,
+    );
+
+    // 🧠 Set headers for a streaming response
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // 🌀 Stream chunks to frontend as they arrive
+    for await (const chunk of stream) {
+      const content = chunk.choices?.[0]?.delta?.content || '';
+      if (content) {
+        res.write(`data: ${content}\n\n`); // SSE format
+      }
+    }
+
+    // ✅ Signal completion
+    res.write(`data: [DONE]\n\n`);
+    res.end();
+  } catch (error: any) {
+    this.logger.error('Error streaming AI comparison:', error);
+    if (!res.headersSent) {
+      res
+        .status(HttpStatus.BAD_REQUEST)
+        .json({ success: false, message: error.message });
+    } else {
+      res.end();
+    }
+  }
+}
+
 }

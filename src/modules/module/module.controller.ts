@@ -5,7 +5,6 @@ import {
   Put,
   Query,
   Body,
-  HttpStatus,
   UploadedFile,
   UseInterceptors,
   Logger,
@@ -31,22 +30,26 @@ export class ModuleController {
   constructor(private readonly moduleService: ModuleService) {}
 
   @Get('get')
-  async getModules() {
+  async getModules(): Promise<ModuleResponse<any[]>> {
     try {
-      const modules = await this.moduleService.findAll();
+      const response = await this.moduleService.findAll();
+      const modules = response.data;
 
       if (!modules || modules.length === 0) {
         this.logger.log("Couldn't find any modules");
-        throw new NotFoundException('Not Found');
+        throw new NotFoundException('Modules not found');
       }
 
       return {
+        success: true,
         message: 'Got Modules Successfully',
         data: modules,
       };
     } catch (err) {
-      this.logger.error(`Error Modules Not Found message: ${err}`);
-      throw new NotFoundException('Not Found');
+      this.logger.error(`Error fetching modules: ${err.message}`);
+      throw new InternalServerErrorException('Internal Server Error', {
+        cause: err,
+      });
     }
   }
 
@@ -55,11 +58,13 @@ export class ModuleController {
     ModuleResponse<ModuleWithPathologyCount[]>
   > {
     try {
-      const modules = await this.moduleService.getModulesWithPathologyCount();
+      const response = await this.moduleService.getModulesWithPathologyCount();
+      const modules = response.data;
 
       if (!modules || modules.length === 0) {
         this.logger.log("Couldn't find any modules to count pathologies for.");
         return {
+          success: true,
           message: 'No modules found',
           data: [],
         };
@@ -69,13 +74,14 @@ export class ModuleController {
         'Got Modules with Pathology Count and Sample Pathologies Successfully',
       );
       return {
+        success: true,
         message:
           'Got Modules with Pathology Count and Sample Pathologies Successfully',
         data: modules,
       };
     } catch (err) {
       this.logger.error(
-        `Error getting modules with pathology count and sample pathologies: ${err.message}`,
+        `Error getting modules with pathology count: ${err.message}`,
       );
       throw new InternalServerErrorException('Internal Server Error', {
         cause: err,
@@ -88,13 +94,13 @@ export class ModuleController {
     ModuleResponse<ModuleWithSessionCount[]>
   > {
     try {
-      const modules = await this.moduleService.getModulesWithSessionCount();
+      const response = await this.moduleService.getModulesWithSessionCount();
+      const modules = response.data;
 
       if (!modules || modules.length === 0) {
-        this.logger.log(
-          "Couldn't find any modules with sessions or pathologies.",
-        );
+        this.logger.log("Couldn't find any modules with sessions or pathologies.");
         return {
+          success: true,
           message: 'No modules found',
           data: [],
         };
@@ -104,13 +110,14 @@ export class ModuleController {
         'Got Modules with Session, Pathology Count, and Sample Pathologies Successfully',
       );
       return {
+        success: true,
         message:
           'Got Modules with Session, Pathology Count, and Sample Pathologies Successfully',
         data: modules,
       };
     } catch (err) {
       this.logger.error(
-        `Error getting modules with session and pathology count: ${err.message}`,
+        `Error getting modules with session count: ${err.message}`,
       );
       throw new InternalServerErrorException('Internal Server Error', {
         cause: err,
@@ -123,25 +130,19 @@ export class ModuleController {
   async createModules(
     @Body() createModuleDto: CreateModuleDto,
     @UploadedFile() file: Express.Multer.File,
-  ) {
+  ): Promise<ModuleResponse<any>> {
     try {
-      const module = await this.moduleService.create(createModuleDto, file);
+      const response = await this.moduleService.create(createModuleDto, file);
+      const module = response.data;
 
-      if (!module) {
-        this.logger.log('Input fields are not all required');
-        throw new BadRequestException('Bad Request');
-      }
-
-      this.logger.log('Modules created successfully');
-      console.log(module);
-
+      this.logger.log('Module created successfully');
       return {
-        message: 'Modules Created Successfully',
+        success: true,
+        message: 'Module Created Successfully',
         data: module,
       };
     } catch (err) {
-      console.log(err);
-      this.logger.error(`Error internal server error message: ${err}`);
+      this.logger.error(`Error creating module: ${err.message}`);
       throw new InternalServerErrorException('Internal Server Error', {
         cause: err,
       });
@@ -152,29 +153,23 @@ export class ModuleController {
   async updateModules(
     @Query('id') id: string,
     @Body() updateModuleDto: UpdateModuleDto,
-  ) {
+  ): Promise<ModuleResponse<any>> {
     try {
       if (!id) {
         throw new BadRequestException('Module ID is required for update.');
       }
 
-      const updatedModule = await this.moduleService.update(
-        id,
-        updateModuleDto,
-      );
+      const response = await this.moduleService.update(id, updateModuleDto);
+      const updatedModule = response.data;
 
-      if (!updatedModule) {
-        this.logger.log(`Module with ID ${id} not found for update.`);
-        throw new NotFoundException('Module not found to update');
-      }
-
-      this.logger.log('Modules Updated Successfully');
+      this.logger.log('Module Updated Successfully');
       return {
-        message: 'Modules Updated Successfully',
+        success: true,
+        message: 'Module Updated Successfully',
         data: updatedModule,
       };
     } catch (err) {
-      this.logger.error(`Error in updating module: ${err.message}`);
+      this.logger.error(`Error updating module: ${err.message}`);
 
       if (
         err instanceof BadRequestException ||

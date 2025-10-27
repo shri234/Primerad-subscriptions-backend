@@ -9,7 +9,10 @@ export interface ModuleWithSessionCount extends ModuleWithPathologyCount {
   totalSessionsCount: number;
 }
 
+// src/modules/module/interface/module.interface.ts
 export interface ModuleResponse<T> {
+  success: boolean;
   message: string;
   data: T;
 }
+
