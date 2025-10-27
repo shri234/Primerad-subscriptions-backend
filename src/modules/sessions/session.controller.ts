@@ -380,7 +380,7 @@ async getSessionsByDifficulty(
       const userId = user?._id?.toString() || null;
       const sessions = await this.sessionService.getWatchedSessions(
         userId, 
-        sessionTypeFilter,
+        sessionTypeFilter ? sessionTypeFilter : "All",
         limit,
       );
       return { success: true, data: sessions };

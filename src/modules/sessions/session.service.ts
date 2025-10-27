@@ -517,72 +517,72 @@ async getRecommendedSessions(
 }
 
 
-  async getWatchedSessions(
-    userId: string,
-    sessionTypeFilter?: string,
-    limit: number = 50,
-  ): Promise<any> {
-    const playbackProgressQuery: any = { userId };
+async getWatchedSessions(
+  userId: string,
+  sessionTypeFilter?: string,
+  limit: number = 50,
+): Promise<any> {
+  const playbackProgressQuery: any = { userId:new Types.ObjectId(userId) };
+  if (sessionTypeFilter && sessionTypeFilter !== 'All') {
+    let modelType: string | undefined;
 
-    if (sessionTypeFilter) {
-      let modelType: string | undefined;
-      if (sessionTypeFilter === 'Dicom') modelType = 'DicomCase';
-      else if (sessionTypeFilter === 'Vimeo') modelType = 'RecordedLecture';
-      else if (sessionTypeFilter === 'Live') modelType = 'LiveProgram';
-      if (modelType) playbackProgressQuery.sessionModelType = modelType;
-    }
+    if (sessionTypeFilter === 'Dicom') modelType = 'Dicom';
+    else if (sessionTypeFilter === 'Vimeo') modelType = 'Lecture';
+    else if (sessionTypeFilter === 'Live') modelType = 'Live';
 
-    const playbackProgress = await this.playbackProgressModel
-      .find(playbackProgressQuery)
-      .sort({ lastWatchedAt: -1 })
-      .limit(limit);
-
-    if (playbackProgress.length === 0) {
-      return [];
-    }
-
-    const sessionIds = playbackProgress.map((p) => p.sessionId);
-    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
-
-    const sessions = await this.sessionModel
-      .find({ _id: { $in: sessionIds } })
-      .populate(populateFacultyQuery);
-
-    const sessionMap: Record<string, any> = {};
-    sessions.forEach((session) => {
-      const id = session._id?.toString();
-      if (id) {
-        sessionMap[id] = session;
-      }
-    });
-
-    return playbackProgress
-      .map((progress) => {
-        const session = sessionMap[progress.sessionId.toString()];
-        if (!session) return null;
-
-        let sessionTypeName: string;
-        if (progress.sessionModelType === 'DicomCase')
-          sessionTypeName = 'Dicom';
-        else if (progress.sessionModelType === 'RecordedLecture')
-          sessionTypeName = 'Vimeo';
-        else if (progress.sessionModelType === 'LiveProgram')
-          sessionTypeName = 'Live';
-        else sessionTypeName = 'Unknown';
-
-        return {
-          ...session.toObject(),
-          playbackProgress: {
-            currentTime: progress.currentTime,
-            lastWatchedAt: progress.lastWatchedAt,
-            sessionModelType: progress.sessionModelType,
-            progressId: progress._id,
-          },
-          sessionType: sessionTypeName,
-        };
-      })
-      .filter(Boolean);
+    if (modelType) playbackProgressQuery.sessionModelType = modelType;
   }
+  const playbackProgress = await this.playbackProgressModel
+    .find(playbackProgressQuery)
+    .sort({ lastWatchedAt: -1 })
+    .limit(limit);
+
+  if (playbackProgress.length === 0) {
+    return [];
+  }
+ 
+  const sessionIds = playbackProgress.map((p) => p.sessionId);
+  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+
+  const sessions = await this.sessionModel
+    .find({ _id: { $in: sessionIds } })
+    .populate(populateFacultyQuery);
+
+  const sessionMap: Record<string, any> = {};
+  sessions.forEach((session) => {
+    const id = session._id?.toString();
+    if (id) {
+      sessionMap[id] = session;
+    }
+  });
+
+  return playbackProgress
+    .map((progress) => {
+      const session = sessionMap[progress.sessionId.toString()];
+      if (!session) return null;
+
+      let sessionTypeName: string;
+      if (progress.sessionModelType === 'Dicom') sessionTypeName = 'Dicom';
+      else if (progress.sessionModelType === 'Lecture')
+        sessionTypeName = 'Vimeo';
+      else if (progress.sessionModelType === 'Live')
+        sessionTypeName = 'Live';
+      else sessionTypeName = 'Unknown';
+
+      return {
+        ...session.toObject(),
+        playbackProgress: {
+          currentTime: progress.currentTime,
+          lastWatchedAt: progress.lastWatchedAt,
+          sessionModelType: progress.sessionModelType,
+          progressId: progress._id,
+        },
+        sessionType: sessionTypeName,
+      };
+    })
+    .filter(Boolean);
+}
+
 
   async updateSession(
     sessionId: string,
