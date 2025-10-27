@@ -19,7 +19,6 @@ import type { UserDocument } from '../user/schema/user.schema';
 export class ObservationController {
   constructor(private readonly observationService: ObservationService) {}
 
-  // ✅ Create a new observation
   @UseGuards(AuthGuard)
   @Post()
   createObservation(
@@ -29,8 +28,7 @@ export class ObservationController {
     return this.observationService.createObservation(createDto);
   }
 
-  // ✅ Faculty adds observation notes
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard) 
   @Patch(':id/faculty')
   addFacultyObservation(
     @GetUser() user: any,
@@ -54,21 +52,19 @@ export class ObservationController {
     );
   }
 
-  // ✅ Get all observations for a session
+
   @UseGuards(AuthGuard)
   @Get('session/:sessionId')
   getObservationsBySession(@Param('sessionId') sessionId: string) {
     return this.observationService.getObservationsBySession(sessionId);
   }
 
-  // ✅ Get single observation with responses
   @UseGuards(AuthGuard)
   @Get(':id')
   getObservationWithUserResponses(@Param('id') id: string) {
     return this.observationService.getObservationWithUserResponses(id);
   }
 
-  // ✅ Get all observations for logged-in user
   @UseGuards(AuthGuard)
   @Get('user/me')
   getUserObservations(@GetUser() user: any) {

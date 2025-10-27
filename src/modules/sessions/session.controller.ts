@@ -134,6 +134,46 @@ export class SessionController {
     }
   }
 
+  @Get('getRecommendedSessions')
+  @UseGuards(OptionalAuthGuard, SessionAccessGuard)
+  async getRecommendedSessions(
+    @GetUser() user: any,
+    @Query('limit') limit = 10,
+  ) {
+    try {
+      const userId = user?._id?.toString() || null;
+
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User not authenticated — cannot generate recommendations',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      // No userAccess concept — just pass null
+      const sessions = await this.sessionService.getRecommendedSessions(
+        null,
+        userId,
+        limit,
+      );
+
+      return {
+        success: true,
+        message: 'Recommended sessions fetched successfully',
+        data: sessions,
+      };
+    } catch (error: any) {
+      this.logger.error('Error getting recommended sessions:', error);
+      throw new HttpException(
+        { success: false, message: error.message },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   @Delete('delete')
   @UseGuards(AuthGuard)
   async deleteSession(
