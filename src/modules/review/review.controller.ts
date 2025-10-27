@@ -20,23 +20,17 @@ import type { UserDocument } from '../user/schema/user.schema';
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  // ✅ Get all reviews for a session
   @Get()
   async getReviewsBySession(@Query('sessionId') sessionId: string) {
     return this.reviewsService.getReviewsBySessionId(sessionId);
   }
-
-  // ✅ Get the logged-in user's review for a session
   @Get('user')
   @UseGuards(AuthGuard)
   async getUserReview(
     @GetUser() user: any,
     @Query('sessionId') sessionId: string,
   ) {
-    return this.reviewsService.getUserReviewForSession(
-      user._id.toString(),
-      sessionId,
-    );
+    return this.reviewsService.getUserReviewForSession(user._id, sessionId);
   }
 
   @UseGuards(AuthGuard)

@@ -134,47 +134,45 @@ export class SessionController {
     }
   }
 
-   @Get('getRecommendedSessions')
-@UseGuards(OptionalAuthGuard, SessionAccessGuard)
-async getRecommendedSessions(
-  @GetUser() user: any,
-  @Query('limit') limit = 10,
-) {
-  try {
-    const userId = user?._id?.toString() || null;
+  @Get('getRecommendedSessions')
+  @UseGuards(OptionalAuthGuard, SessionAccessGuard)
+  async getRecommendedSessions(
+    @GetUser() user: any,
+    @Query('limit') limit = 10,
+  ) {
+    try {
+      const userId = user?._id?.toString() || null;
 
-    if (!userId) {
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User not authenticated — cannot generate recommendations',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      // No userAccess concept — just pass null
+      const sessions = await this.sessionService.getRecommendedSessions(
+        null,
+        userId,
+        limit,
+      );
+
+      return {
+        success: true,
+        message: 'Recommended sessions fetched successfully',
+        data: sessions,
+      };
+    } catch (error: any) {
+      this.logger.error('Error getting recommended sessions:', error);
       throw new HttpException(
-        {
-          success: false,
-          message: 'User not authenticated — cannot generate recommendations',
-        },
-        HttpStatus.UNAUTHORIZED,
+        { success: false, message: error.message },
+        HttpStatus.BAD_REQUEST,
       );
     }
-
-    // No userAccess concept — just pass null
-    const sessions = await this.sessionService.getRecommendedSessions(
-      null,
-      userId,
-      limit,
-    );
-
-    return {
-      success: true,
-      message: 'Recommended sessions fetched successfully',
-      data: sessions,
-    };
-  } catch (error: any) {
-    this.logger.error('Error getting recommended sessions:', error);
-    throw new HttpException(
-      { success: false, message: error.message },
-      HttpStatus.BAD_REQUEST,
-    );
   }
-}
-
-
 
   @Delete('delete')
   @UseGuards(AuthGuard)
@@ -187,6 +185,7 @@ async getRecommendedSessions(
       await this.sessionService.deleteSession(
         sessionId,
         sessionType,
+        // user._id.toString(),
       );
       return { success: true, message: 'Session deleted successfully' };
     } catch (error: any) {
@@ -269,9 +268,7 @@ async getRecommendedSessions(
   async getTopRatedLectures(@GetUser() user: any) {
     try {
       const userId = user?._id?.toString() || null;
-      const lectures = await this.sessionService.getTopRatedLectures(
-        userId, // TS18046 resolved
-      );
+      const lectures = await this.sessionService.getTopRatedLectures(userId);
       return { success: true, data: lectures };
     } catch (error: any) {
       this.logger.error('Error getting top rated lectures:', error);
@@ -287,10 +284,7 @@ async getRecommendedSessions(
   async getTopRatedCases(@Query('limit') limit = 10, @GetUser() user: any) {
     try {
       const userId = user?._id?.toString() || null;
-      const cases = await this.sessionService.getTopRatedCases(
-        limit,
-        userId, // TS18046 resolved
-      );
+      const cases = await this.sessionService.getTopRatedCases(limit, userId);
       return { success: true, data: cases };
     } catch (error: any) {
       this.logger.error('Error getting top rated cases:', error);
@@ -306,9 +300,7 @@ async getRecommendedSessions(
   async getTopWatchedSessions(@GetUser() user: any) {
     try {
       const userId = user?._id?.toString() || null;
-      const sessions = await this.sessionService.getTopWatchedSessions(
-        userId, // TS18046 resolved
-      );
+      const sessions = await this.sessionService.getTopWatchedSessions(userId);
       return { success: true, data: sessions };
     } catch (error: any) {
       this.logger.error('Error getting top watched sessions:', error);
