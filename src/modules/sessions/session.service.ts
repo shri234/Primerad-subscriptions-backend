@@ -444,7 +444,6 @@ async getRecommendedSessions(
 }
 
 
-
   async getWatchedSessions(
     userId: string,
     sessionTypeFilter?: string,
