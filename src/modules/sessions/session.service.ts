@@ -322,24 +322,25 @@ async getSessionsByDifficulty(
 ) as unknown as ISession[];
 
   } else {
-    // 🚀 No userAccess → show only top 3 sessions as preview
     filteredSessions = combinedSessions.slice(0, 3);
   }
 
   const totalCount = filteredSessions.length;
   const paginatedSessions = filteredSessions.slice(skip, skip + limitNum);
 
-  return {
+  const data = {
     sessions: paginatedSessions,
-    totalCount,
+    totalCount: filteredSessions.length,
     page: pageNum,
     limit: limitNum,
-    breakdown: {
-      dicomCount,
-      recordedCount,
-      liveCount,
-    },
+    breakdown: { dicomCount, recordedCount, liveCount },
   };
+
+  // ✅ Apply image domain to all sessions before returning
+  data.sessions = this.appendImageDomainToMany(data.sessions);
+
+  return data;
+
 }
 
 
