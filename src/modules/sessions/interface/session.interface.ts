@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
+import { ISession } from '../../../config/session-access-helper';
 
-// Re-export ISession and related types from the helper
 export type {
   ISession,
   IUserAccess,
@@ -8,7 +8,6 @@ export type {
   AccessLevel,
 } from '../../../config/session-access-helper';
 
-// Additional interfaces specific to this module
 export interface IPlaybackProgress {
   userId: string | Types.ObjectId;
   sessionId: string | Types.ObjectId;
@@ -25,3 +24,8 @@ export interface IUserSessionView {
   lastViewedAt: Date;
   isCompleted: boolean;
 }
+
+export type ISessionWithRating = ISession & {
+  avgRating?: number;
+  reviewCount?: number;
+};

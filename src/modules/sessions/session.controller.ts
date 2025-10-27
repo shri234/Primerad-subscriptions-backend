@@ -25,7 +25,7 @@ import { SessionAccessGuard } from '../auth/guards/session-access.guard';
 import type { UserDocument } from '../user/schema/user.schema';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import type { Response } from 'express';
-import { Res } from '@nestjs/common'; // already present
+import { Res } from '@nestjs/common';
 
 
 @Controller('sessions')
@@ -200,8 +200,6 @@ export class SessionController {
     }
   }
 
-  // ------------------ PUBLIC / OPTIONAL AUTH ROUTES ------------------
-
   @Get('get')
   @UseGuards(OptionalAuthGuard, SessionAccessGuard)
   async getSessions(
@@ -225,6 +223,7 @@ export class SessionController {
     }
   }
 
+
 @Get('getSessionByDifficulty')
 @UseGuards(OptionalAuthGuard, SessionAccessGuard)
 async getSessionsByDifficulty(
@@ -234,12 +233,11 @@ async getSessionsByDifficulty(
   @GetUser() user?: any,
 ) {
   try {
-    // 🧠 Build userAccess object correctly based on IUserAccess interface
     const userAccess = user
       ? {
           _id: user._id.toString(),
           isLoggedIn: true,
-          isSubscribed: user.isSubscribed ?? false, // fallback if missing
+          isSubscribed: user.isSubscribed ?? false, 
         }
       : null;
 
@@ -259,8 +257,6 @@ async getSessionsByDifficulty(
     );
   }
 }
-
-
 
   @Get('getRecentItems')
   @UseGuards(OptionalAuthGuard, SessionAccessGuard)
@@ -348,7 +344,6 @@ async getSessionsByDifficulty(
     }
   }
 
-  // ------------------ AUTHENTICATED USER ROUTES ------------------
 
   @Post('track')
   @UseGuards(AuthGuard)
@@ -359,7 +354,7 @@ async getSessionsByDifficulty(
   ) {
     try {
       const view = await this.sessionService.trackSessionView(
-        user._id.toString(), // TS18046 resolved
+        user._id.toString(), 
         sessionId,
         moduleId,
       );
@@ -377,10 +372,6 @@ async getSessionsByDifficulty(
   @UseGuards(AuthGuard)
   async getWatchedSessions(
     @GetUser() user: any,
-    // FIX TS1016: The required parameter @GetUser() user: UserDocument must not follow
-    // an optional parameter that doesn't have a default value.
-    // The current order with default values is correct, but let's ensure @GetUser is last
-    // for conventional safety, or you can keep the order if all preceding parameters have defaults.
     @Query('sessionTypeFilter') sessionTypeFilter?: string,
 
     @Query('limit') limit = 50,
@@ -388,7 +379,7 @@ async getSessionsByDifficulty(
     try {
       const userId = user?._id?.toString() || null;
       const sessions = await this.sessionService.getWatchedSessions(
-        userId, // TS18046 resolved
+        userId, 
         sessionTypeFilter,
         limit,
       );

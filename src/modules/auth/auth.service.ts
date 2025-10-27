@@ -65,6 +65,7 @@ export class AuthService {
         email: findUser.email,
         mobileNumber: findUser.mobileNumber,
         role: findUser.role,
+        subscription: findUser.subscription
       },
     };
   }

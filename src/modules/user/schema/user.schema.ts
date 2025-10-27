@@ -42,14 +42,18 @@ export class User {
 
   @Prop({
     type: Object,
-    default: {},
+    default:  {
+    name: '',
+    type: '',
+    status: 'inactive',
+    expiryDate: null,
+  },
   })
   subscription?: {
+    name?:string;
     type?: string;
     status?: string;
     expiryDate?: Date;
-    allowedModules?: string[];
-    allowedPathologies?: string[];
   };
 
   @Prop({ type: [String], default: [] })
@@ -59,10 +63,7 @@ export class User {
   allowedPathologies?: string[];
 }
 
-// Create Mongoose schema
 export const UserSchema = SchemaFactory.createForClass(User);
-
-// Pre-save hook to hash password
 UserSchema.pre<UserDocument>('save', async function (next) {
   if (!this.isModified('password')) return next();
 

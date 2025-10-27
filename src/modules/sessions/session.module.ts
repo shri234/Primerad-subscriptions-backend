@@ -6,6 +6,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';
+import {Review, ReviewSchema} from '../review/schema/review.schema'
 import {
   Session,
   SessionSchema,
@@ -33,6 +34,10 @@ import { Faculty, FacultySchema } from '../faculty/schema/faculty.schema';
       {
         name: Session.name,
         schema: SessionSchema,
+      },
+      {
+        name: Review.name,
+        schema: ReviewSchema
       },
       {
         name: Pathology.name,

@@ -12,7 +12,7 @@ export interface ISession extends Document {
   difficulty?: string;
   moduleName?: string;
   pathologyName?: string;
-  pathologyId?: Types.ObjectId
+  pathologyId?: Types.ObjectId;
   createdAt?: Date;
   isFree?: boolean;
   sessionType?: string;
@@ -55,7 +55,7 @@ export function applySessionAccessControl(
     isSubscribed: false,
   };
 
-  // Subscribed: all unlocked
+  console.log(isSubscribed,isLoggedIn,"Logged In or subscribed")
   if (isSubscribed) {
     return sessions.map(
       (session: ISession): IControlledSession => ({
@@ -74,6 +74,8 @@ export function applySessionAccessControl(
     (s: ISession): boolean => s.isFree !== true,
   );
 
+  console.log(freeSessions,paidSessions,"free and paid sessions")
+
   let accessibleSessions: IControlledSession[] = [];
   let lockedSessions: IControlledSession[] = [];
 
@@ -83,6 +85,8 @@ export function applySessionAccessControl(
       freeSessions,
     ).slice(0, freeLimit);
 
+    console.log(randomFreeSessions,"random free sessions")
+
     accessibleSessions = randomFreeSessions.map(
       (session: ISession): IControlledSession => ({
         ...(session.toObject?.() ?? session),
@@ -91,6 +95,8 @@ export function applySessionAccessControl(
         accessLevel: 'guest' as AccessLevel,
       }),
     );
+
+
 
     const remainingSessions: ISession[] = [
       ...freeSessions.filter(
@@ -109,7 +115,6 @@ export function applySessionAccessControl(
       }),
     );
   } else {
-    // Logged in but not subscribed
     const loggedInFreeLimit: number = Math.min(
       freeLimit + 3,
       freeSessions.length,
@@ -144,12 +149,11 @@ export function applySessionAccessControl(
     );
   }
 
+  console.log(accessibleSessions,lockedSessions,"accessible and locked sessions")
+
   return [...accessibleSessions, ...lockedSessions];
 }
 
-/**
- * Sanitize locked session (hide sensitive info)
- */
 export function sanitizeLockedSession(
   session: ISession,
 ): Omit<IControlledSession, 'isLocked' | 'accessLevel' | 'lockReason'> {

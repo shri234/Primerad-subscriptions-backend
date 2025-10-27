@@ -14,8 +14,9 @@ import OpenAI from 'openai';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { applySessionAccessControl } from '../../config/session-access-helper';
-import { IUserAccess, ISession } from './interface/session.interface';
+import { IUserAccess } from './interface/session.interface';
 import { Session, SessionDocument } from './schema/session.schema';
+import {Review, ReviewDocument} from '../review/schema/review.schema'
 import type { Express } from 'express';
 import {
   PlaybackProgress,
@@ -25,6 +26,7 @@ import {
   UserSessionView,
   UserSessionViewDocument,
 } from './schema/session.schema';
+import { ISessionWithRating,ISession } from './interface/session.interface';
 
 @Injectable()
 export class SessionService {
@@ -38,6 +40,8 @@ export class SessionService {
     private playbackProgressModel: Model<PlaybackProgressDocument>,
     @InjectModel(UserSessionView.name)
     private userSessionViewModel: Model<UserSessionViewDocument>,
+    @InjectModel(Review.name)
+    private reviewModel: Model<ReviewDocument>,
     private configService: ConfigService,
   ) {
     this.openai = new OpenAI({
@@ -203,31 +207,96 @@ export class SessionService {
     return data;
   }
 
-  async getTopRatedCases(
-    limit: number | string,
-    userAccess: IUserAccess,
-  ): Promise<any> {
-    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
 
-    let cases: any[];
-    if (limit === 'All') {
-      cases = await this.sessionModel
-        .find({ sessionType: 'Dicom' })
-        .populate(populateFacultyQuery)
-        .sort({ createdAt: -1 });
-    } else {
-      const limitNum = parseInt(limit as string, 10) || 10;
-      cases = await this.sessionModel
-        .find({ sessionType: 'Dicom' })
-        .populate(populateFacultyQuery)
-        .sort({ createdAt: -1 })
-        .limit(limitNum);
-    }
+async getTopRatedCases(
+  limit: number | string,
+  userAccess: IUserAccess,
+): Promise<any> {
+  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+  const limitNum = limit === 'All' ? null : (parseInt(limit as string, 10) || 10);
+  
+  type RatedAgg = {
+    _id: Types.ObjectId;
+    avgRating: number;
+    reviewCount: number;
+    lastReviewAt: Date;
+  };
 
-    const casesData = cases.map((c) => c.toObject() as ISession);
-    const data = applySessionAccessControl(casesData, userAccess, 2);
-    return this.appendImageDomainToMany(data);
-  }
+  const rated: RatedAgg[] = await this.reviewModel.aggregate([
+    {
+      $lookup: {
+        from: 'sessions',
+        localField: 'sessionId',
+        foreignField: '_id',
+        as: 'session',
+      },
+    },
+    { $unwind: '$session' },
+    { $match: { 'session.sessionType': 'Dicom' } },
+    {
+      $group: {
+        _id: '$sessionId',
+        avgRating: { $avg: '$rating' },
+        reviewCount: { $sum: 1 },
+        lastReviewAt: { $max: '$createdAt' },
+      },
+    },
+    { $sort: { avgRating: -1, reviewCount: -1, lastReviewAt: -1 } },
+    ...(limitNum ? [{ $limit: limitNum }] : []),
+  ]);
+
+  const ratedIds = rated.map((r) => r._id);
+
+  const ratedSessions = await this.sessionModel
+    .find({ _id: { $in: ratedIds }, sessionType: 'Dicom' })
+    .populate(populateFacultyQuery)
+    .lean();
+
+  const byId = new Map(
+    ratedSessions.map((s) => [s._id.toString(), s]),
+  );
+
+  // let ordered: ISessionWithRating[] = rated
+  //   .map((r) => {
+  //     const s = byId.get(r._id.toString());
+  //     if (!s) return null;
+  //     return {
+  //       ...s,
+  //       avgRating: Math.round((r.avgRating ?? 0) * 100) / 100,
+  //       reviewCount: r.reviewCount ?? 0,
+  //     } as ISessionWithRating;
+  //   })
+  //   .filter((x): x is ISessionWithRating => Boolean(x));
+
+  // 3) Optionally fill with unrated sessions to reach desired limit
+  // const need = (limitNum ?? Number.POSITIVE_INFINITY) - ordered.length;
+  // if (need > 0) {
+  //   const unrated = await this.sessionModel
+  //     .find({ _id: { $nin: ratedIds }, sessionType: 'Dicom' })
+  //     .populate(populateFacultyQuery)
+  //     .sort({ createdAt: -1 })
+  //     .limit(limitNum ? need : 0)
+  //     .lean();
+
+  //   const unratedWithMetrics: ISessionWithRating[] = unrated.map((s) => ({
+  //     ...s,
+  //     avgRating: 0,
+  //     reviewCount: 0,
+  //   }));
+
+  //   ordered = [...ordered, ...unratedWithMetrics];
+  // }
+
+  // // 4) Apply access control (update its signature to accept ISessionLean[])
+  // const gated = applySessionAccessControl(
+  //   ordered as unknown as ISessionLean[], // ideally update applySessionAccessControl types
+  //   userAccess,
+  //   2,
+  // );
+
+  return this.appendImageDomainToMany(ratedSessions);
+}
+
 
   async getTopRatedLectures(userAccess: IUserAccess): Promise<any> {
     const populateFacultyQuery = { path: 'faculty', select: 'name image' };
