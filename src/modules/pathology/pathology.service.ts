@@ -12,47 +12,69 @@ import { Pathology, PathologyDocument } from './schema/pathology.schema';
 import { Module, ModuleDocument } from '../module/schema/module.schema';
 import { CreatePathologyDto } from './dto/create-pathology.dto';
 import { UpdatePathologyDto } from './dto/update-pathology.dto';
+import { ImageDomainHelper } from 'src/config/image-domain.util';
 import type { Express } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PathologyService {
   private readonly logger = new Logger(PathologyService.name);
+  private readonly imageHelper: ImageDomainHelper;
 
   constructor(
     @InjectModel(Pathology.name)
     private pathologyModel: Model<PathologyDocument>,
     @InjectModel(Module.name)
     private moduleModel: Model<ModuleDocument>,
-  ) {}
-
-  async findAll(): Promise<PathologyDocument[]> {
-    return this.pathologyModel.find({}).exec();
+    private configService: ConfigService,
+  ) {
+    const domain: string =
+      this.configService.get<string>('BACKEND_IMAGE_DOMAIN') ?? '';
+    this.imageHelper = new ImageDomainHelper(domain);
   }
 
-  async findById(pathologyId: string): Promise<PathologyDocument> {
-    const pathology = await this.pathologyModel.findById(pathologyId).exec();
+  private successResponse(message: string, data: any) {
+    return { success: true, message, data };
+  }
+
+  private errorResponse(message: string) {
+    return { success: false, message };
+  }
+
+  // ✅ Get all pathologies with domain appended to image URLs
+  async findAll() {
+    const pathologies = await this.pathologyModel.find({}).lean().exec();
+    const updated = this.imageHelper.appendImageDomainToMany(pathologies);
+    return this.successResponse('Got all pathologies successfully', updated);
+  }
+
+  // ✅ Get one pathology by ID with image domain applied
+  async findById(pathologyId: string) {
+    const pathology = await this.pathologyModel.findById(pathologyId).lean().exec();
 
     if (!pathology) {
-      throw new NotFoundException('Pathology Not Found');
+      throw new NotFoundException(this.errorResponse('Pathology Not Found'));
     }
 
-    return pathology;
+    const updated = this.imageHelper.appendImageDomain(pathology);
+    return this.successResponse('Got pathology successfully', updated);
   }
 
+  // ✅ Get local image path (used for serving static files)
   async getPathologyImagePath(pathologyId: string): Promise<string> {
-    const pathology = await this.findById(pathologyId);
+    const pathologyDoc = await this.pathologyModel.findById(pathologyId).exec();
 
-    if (!pathology) {
+    if (!pathologyDoc) {
       this.logger.log('Image for Pathology not found');
       throw new NotFoundException('Pathology Not Found');
     }
 
-    if (!pathology.imageUrl) {
+    if (!pathologyDoc.imageUrl) {
       this.logger.log('Image URL not found for pathology');
       throw new NotFoundException('Image URL Not Found');
     }
 
-    const imagePath = path.join(__dirname, '..', '..', pathology.imageUrl!);
+    const imagePath = path.join(__dirname, '..', '..', pathologyDoc.imageUrl!);
 
     if (!fs.existsSync(imagePath)) {
       this.logger.log('Image not found in the upload folder');
@@ -62,11 +84,12 @@ export class PathologyService {
     return imagePath;
   }
 
+  // ✅ Create a new pathology and return with image domain
   async create(
     moduleId: string,
     createPathologyDto: CreatePathologyDto,
     file?: Express.Multer.File,
-  ): Promise<PathologyDocument> {
+  ) {
     const module = await this.moduleModel.findById(moduleId).exec();
 
     if (!module) {
@@ -91,13 +114,15 @@ export class PathologyService {
       throw new BadRequestException('Bad Request');
     }
 
-    return savedPathology;
+    const updated = this.imageHelper.appendImageDomain(savedPathology.toObject());
+    return this.successResponse('Pathology created successfully', updated);
   }
 
+  // ✅ Update pathology and return updated object with image domain
   async update(
     pathologyId: string,
     updatePathologyDto: UpdatePathologyDto,
-  ): Promise<PathologyDocument> {
+  ) {
     const updatedPathology = await this.pathologyModel
       .findByIdAndUpdate(
         pathologyId,
@@ -107,18 +132,25 @@ export class PathologyService {
         },
         { new: true },
       )
+      .lean()
       .exec();
 
     if (!updatedPathology) {
       throw new NotFoundException('Pathology Not Found');
     }
 
-    return updatedPathology;
+    const updated = this.imageHelper.appendImageDomain(updatedPathology);
+    return this.successResponse('Pathology updated successfully', updated);
   }
 
-  async findByModuleIds(moduleIds: string): Promise<PathologyDocument[]> {
-    return this.pathologyModel
+  // ✅ Get all pathologies for a given module ID with domain prepended
+  async findByModuleIds(moduleIds: string) {
+    const pathologies = await this.pathologyModel
       .find({ moduleId: new mongoose.Types.ObjectId(moduleIds) })
+      .lean()
       .exec();
+
+    const updated = this.imageHelper.appendImageDomainToMany(pathologies);
+    return this.successResponse('Got pathologies by module successfully', updated);
   }
 }

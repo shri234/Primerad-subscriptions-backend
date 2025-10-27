@@ -20,33 +20,28 @@ import { PathologyService } from './pathology.service';
 import { CreatePathologyDto } from './dto/create-pathology.dto';
 import { UpdatePathologyDto } from './dto/update-pathology.dto';
 import type { Express } from 'express';
+
 @Controller('pathologies')
 export class PathologyController {
   private readonly logger = new Logger(PathologyController.name);
 
   constructor(private readonly pathologyService: PathologyService) {}
 
+  // ✅ Get all pathologies (service handles response formatting)
   @Get('get')
   async getPathologies() {
     try {
-      const pathologies = await this.pathologyService.findAll();
-
-      if (!pathologies || pathologies.length === 0) {
-        this.logger.log('Pathologies Not found');
-        throw new NotFoundException('Not Found');
-      }
-
-      this.logger.log('Got Pathologies Successfully');
-      return {
-        message: 'Got Pathologies Successfully',
-        data: pathologies,
-      };
+      const response = await this.pathologyService.findAll();
+      return response;
     } catch (err) {
-      this.logger.error(`Error Internal Server Error message: ${err}`);
-      throw new NotFoundException('Not Found');
+      this.logger.error(`Error fetching pathologies: ${err.message}`);
+      throw new InternalServerErrorException('Failed to get pathologies', {
+        cause: err,
+      });
     }
   }
 
+  // ✅ Serve pathology image by ID
   @Get('image')
   async getPathologyImages(
     @Query('pathologyId') pathologyId: string,
@@ -59,14 +54,16 @@ export class PathologyController {
       res.set('Content-Type', 'image/jpeg');
       res.sendFile(imagePath);
     } catch (err) {
-      this.logger.error(`Error Internal Server Error message: ${err}`);
+      this.logger.error(`Error retrieving pathology image: ${err.message}`);
 
       if (err instanceof NotFoundException) {
         res.status(HttpStatus.NOT_FOUND).json({
+          success: false,
           message: err.message,
         });
       } else {
         res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          success: false,
           message: 'Server Error',
           error: err.message,
         });
@@ -74,6 +71,7 @@ export class PathologyController {
     }
   }
 
+  // ✅ Create a new pathology (service returns formatted response)
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   async createPathologies(
@@ -82,48 +80,46 @@ export class PathologyController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     try {
-      const pathology = await this.pathologyService.create(
+      const response = await this.pathologyService.create(
         moduleId?.trim(),
         createPathologyDto,
         file,
       );
 
       this.logger.log('Pathology created successfully');
-      return {
-        message: 'Pathologies Created Successfully',
-        data: pathology,
-      };
+      return response;
     } catch (err) {
-      this.logger.error(`Error Internal Server Error message: ${err}`);
-      throw new BadRequestException('Not Found', { cause: err });
+      this.logger.error(`Error creating pathology: ${err.message}`);
+      throw new BadRequestException('Failed to create pathology', {
+        cause: err,
+      });
     }
   }
 
+  // ✅ Update an existing pathology (service returns formatted response)
   @Put()
   async updatePathologies(
     @Query('id') id: string,
     @Body() updatePathologyDto: UpdatePathologyDto,
   ) {
     try {
-      const updatedPathology = await this.pathologyService.update(
+      const response = await this.pathologyService.update(
         id,
         updatePathologyDto,
       );
 
-      if (!updatedPathology) {
-        throw new BadRequestException('Bad Request');
-      }
-
-      return {
-        message: 'Pathologies Updated Successfully',
-        data: updatedPathology,
-      };
+      this.logger.log(`Pathology updated successfully for ID: ${id}`);
+      return response;
     } catch (err) {
-      this.logger.error(`Error updating pathology: ${err}`);
-      throw new InternalServerErrorException('Not Found to update pathology');
+      this.logger.error(`Error updating pathology: ${err.message}`);
+      if (err instanceof NotFoundException) throw err;
+      throw new InternalServerErrorException('Failed to update pathology', {
+        cause: err,
+      });
     }
   }
 
+  // ✅ Get pathologies by module ID (service returns formatted response)
   @Get('getByModule')
   async getPathologiesByModule(@Query('moduleId') moduleId: string) {
     try {
@@ -131,22 +127,14 @@ export class PathologyController {
         throw new BadRequestException('Module ID(s) are required');
       }
 
-      const pathologies = await this.pathologyService.findByModuleIds(moduleId);
-
-      if (!pathologies || pathologies.length === 0) {
-        this.logger.log(`No pathologies found for module ID: ${moduleId}`);
-        throw new NotFoundException('No pathologies found for these modules');
-      }
+      const response = await this.pathologyService.findByModuleIds(moduleId);
 
       this.logger.log(
-        `Successfully retrieved pathologies for module IDs: ${moduleId}`,
+        `Successfully retrieved pathologies for module ID: ${moduleId}`,
       );
-      return {
-        message: 'Got Pathologies for modules Successfully',
-        data: pathologies,
-      };
+      return response;
     } catch (err) {
-      this.logger.error(`Error getting pathologies by modules: ${err.message}`);
+      this.logger.error(`Error getting pathologies by module: ${err.message}`);
 
       if (
         err instanceof BadRequestException ||
