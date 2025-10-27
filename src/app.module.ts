@@ -12,6 +12,7 @@ import { ObservationModule } from './modules/observations/observations.module';
 import { AssessmentModule } from './modules/assessment/assessment.module';
 import { ReviewsModule } from './modules/review/review.module';
 import { FacultyModule } from './modules/faculty/faculty.module';
+import { SessionStatusModule } from './modules/session-status/session-status.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { FacultyModule } from './modules/faculty/faculty.module';
     AssessmentModule,
     ReviewsModule,
     FacultyModule,
+    SessionStatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],

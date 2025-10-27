@@ -10,6 +10,7 @@ import { Review, ReviewDocument } from './schema/review.schema';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { Session } from '../sessions/schema/session.schema';
+import { response } from 'express';
 
 @Injectable()
 export class ReviewsService {
@@ -20,16 +21,27 @@ export class ReviewsService {
   ) {}
 
   async getReviewsBySessionId(sessionId: string) {
-    return this.reviewModel
+    let data = await this.reviewModel
       .find({ sessionId: new Types.ObjectId(sessionId) })
       .populate('userId')
       .sort({ createdAt: -1 })
       .limit(4)
       .exec();
+
+    return {
+      response: 'Got reviews based on session successfully',
+      data: data,
+    };
   }
 
   async getUserReviewForSession(userId: string, sessionId: string) {
-    return this.reviewModel.findOne({ userId, sessionId }).exec();
+    let data = await this.reviewModel
+      .findOne({ userId, sessionId: new Types.ObjectId(sessionId) })
+      .exec();
+    return {
+      response: 'Got particular user review for this session successfully',
+      data: data,
+    };
   }
 
   async createReview(userId: string, dto: CreateReviewDto) {
@@ -78,7 +90,6 @@ export class ReviewsService {
   }
 
   private async updateAverageRating(sessionId: string) {
-    console.log('inside', sessionId, typeof sessionId);
     const stats = await this.reviewModel.aggregate([
       { $match: { sessionId: new Types.ObjectId(sessionId) } },
       {

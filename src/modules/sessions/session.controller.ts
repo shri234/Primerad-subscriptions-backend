@@ -142,13 +142,10 @@ export class SessionController {
     @GetUser() user: UserDocument,
   ) {
     try {
-      // FIX TS2554: Assuming the service method should only take sessionId and sessionType.
-      // If user._id is required, the service method signature must be fixed in SessionService.
-      // Based on the error, removing user._id.toString() from the call:
       await this.sessionService.deleteSession(
         sessionId,
         sessionType,
-        // user._id.toString(), // REMOVED to satisfy TS2554
+        // user._id.toString(),
       );
       return { success: true, message: 'Session deleted successfully' };
     } catch (error: any) {
@@ -231,9 +228,7 @@ export class SessionController {
   async getTopRatedLectures(@GetUser() user: any) {
     try {
       const userId = user?._id?.toString() || null;
-      const lectures = await this.sessionService.getTopRatedLectures(
-        userId, // TS18046 resolved
-      );
+      const lectures = await this.sessionService.getTopRatedLectures(userId);
       return { success: true, data: lectures };
     } catch (error: any) {
       this.logger.error('Error getting top rated lectures:', error);
@@ -249,10 +244,7 @@ export class SessionController {
   async getTopRatedCases(@Query('limit') limit = 10, @GetUser() user: any) {
     try {
       const userId = user?._id?.toString() || null;
-      const cases = await this.sessionService.getTopRatedCases(
-        limit,
-        userId, // TS18046 resolved
-      );
+      const cases = await this.sessionService.getTopRatedCases(limit, userId);
       return { success: true, data: cases };
     } catch (error: any) {
       this.logger.error('Error getting top rated cases:', error);
@@ -268,9 +260,7 @@ export class SessionController {
   async getTopWatchedSessions(@GetUser() user: any) {
     try {
       const userId = user?._id?.toString() || null;
-      const sessions = await this.sessionService.getTopWatchedSessions(
-        userId, // TS18046 resolved
-      );
+      const sessions = await this.sessionService.getTopWatchedSessions(userId);
       return { success: true, data: sessions };
     } catch (error: any) {
       this.logger.error('Error getting top watched sessions:', error);

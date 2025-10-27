@@ -240,7 +240,6 @@ export class SessionService {
     const lecturesData = lectures.map((l) => l.toObject() as ISession);
     const processed = applySessionAccessControl(lecturesData, userAccess, 2);
 
-    // Add full image domain before returning
     return this.appendImageDomainToMany(processed);
   }
 
