@@ -13,6 +13,8 @@ import {
   HttpStatus,
   HttpException,
   Logger,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
@@ -26,7 +28,6 @@ import type { UserDocument } from '../user/schema/user.schema';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import type { Response } from 'express';
 import { Res } from '@nestjs/common';
-
 
 @Controller('sessions')
 export class SessionController {
@@ -223,40 +224,39 @@ export class SessionController {
     }
   }
 
+  @Get('getSessionByDifficulty')
+  @UseGuards(OptionalAuthGuard, SessionAccessGuard)
+  async getSessionsByDifficulty(
+    @Query('pathologyId') pathologyId: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @GetUser() user?: any,
+  ) {
+    try {
+      const userAccess = user
+        ? {
+            _id: user._id.toString(),
+            isLoggedIn: true,
+            isSubscribed: user.isSubscribed ?? false,
+          }
+        : null;
 
-@Get('getSessionByDifficulty')
-@UseGuards(OptionalAuthGuard, SessionAccessGuard)
-async getSessionsByDifficulty(
-  @Query('pathologyId') pathologyId: string,
-  @Query('page') page = 1,
-  @Query('limit') limit = 10,
-  @GetUser() user?: any,
-) {
-  try {
-    const userAccess = user
-      ? {
-          _id: user._id.toString(),
-          isLoggedIn: true,
-          isSubscribed: user.isSubscribed ?? false, 
-        }
-      : null;
+      const result = await this.sessionService.getSessionsByDifficulty(
+        pathologyId,
+        Number(page),
+        Number(limit),
+        userAccess,
+      );
 
-    const result = await this.sessionService.getSessionsByDifficulty(
-      pathologyId,
-      Number(page),
-      Number(limit),
-      userAccess,
-    );
-
-    return { success: true, data: result };
-  } catch (error: any) {
-    this.logger.error('Error getting sessions by difficulty:', error);
-    throw new HttpException(
-      { success: false, message: error.message },
-      HttpStatus.BAD_REQUEST,
-    );
+      return { success: true, data: result };
+    } catch (error: any) {
+      this.logger.error('Error getting sessions by difficulty:', error);
+      throw new HttpException(
+        { success: false, message: error.message },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
-}
 
   @Get('getRecentItems')
   @UseGuards(OptionalAuthGuard, SessionAccessGuard)
@@ -332,7 +332,7 @@ async getSessionsByDifficulty(
       const userId = user?._id?.toString() || null;
       const programs = await this.sessionService.getUpcomingLivePrograms(
         limit,
-        userId, // TS18046 resolved
+        userId,
       );
       return { success: true, data: programs };
     } catch (error: any) {
@@ -344,7 +344,6 @@ async getSessionsByDifficulty(
     }
   }
 
-
   @Post('track')
   @UseGuards(AuthGuard)
   async trackSessionView(
@@ -354,7 +353,7 @@ async getSessionsByDifficulty(
   ) {
     try {
       const view = await this.sessionService.trackSessionView(
-        user._id.toString(), 
+        user._id.toString(),
         sessionId,
         moduleId,
       );
@@ -379,8 +378,8 @@ async getSessionsByDifficulty(
     try {
       const userId = user?._id?.toString() || null;
       const sessions = await this.sessionService.getWatchedSessions(
-        userId, 
-        sessionTypeFilter ? sessionTypeFilter : "All",
+        userId,
+        sessionTypeFilter ? sessionTypeFilter : 'All',
         limit,
       );
       return { success: true, data: sessions };
@@ -412,45 +411,116 @@ async getSessionsByDifficulty(
   }
 
   @Post('generateAIComparison')
-@UseGuards(AuthGuard)
-async generateAIComparison(
-  @Body('userObservations') userObservations: string,
-  @Body('facultyObservations') facultyObservations: string,
-  @Res() res: Response,
-) {
- try {
-    const stream = await this.sessionService.generateAIComparisonStream(
-      userObservations,
-      facultyObservations,
-    );
+  @UseGuards(AuthGuard)
+  async generateAIComparison(
+    @Body('userObservations') userObservations: string,
+    @Body('facultyObservations') facultyObservations: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const stream = await this.sessionService.generateAIComparisonStream(
+        userObservations,
+        facultyObservations,
+      );
 
-    // 🧠 Set headers for a streaming response
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
+      // 🧠 Set headers for a streaming response
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
 
-    // 🌀 Stream chunks to frontend as they arrive
-    for await (const chunk of stream) {
-      const content = chunk.choices?.[0]?.delta?.content || '';
-      if (content) {
-        res.write(`data: ${content}\n\n`); // SSE format
+      // 🌀 Stream chunks to frontend as they arrive
+      for await (const chunk of stream) {
+        const content = chunk.choices?.[0]?.delta?.content || '';
+        if (content) {
+          res.write(`data: ${content}\n\n`); // SSE format
+        }
+      }
+
+      // ✅ Signal completion
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    } catch (error: any) {
+      this.logger.error('Error streaming AI comparison:', error);
+      if (!res.headersSent) {
+        res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ success: false, message: error.message });
+      } else {
+        res.end();
       }
     }
+  }
 
-    // ✅ Signal completion
-    res.write(`data: [DONE]\n\n`);
-    res.end();
-  } catch (error: any) {
-    this.logger.error('Error streaming AI comparison:', error);
-    if (!res.headersSent) {
-      res
-        .status(HttpStatus.BAD_REQUEST)
-        .json({ success: false, message: error.message });
-    } else {
-      res.end();
+  @Get()
+  @UseGuards(OptionalAuthGuard, SessionAccessGuard)
+  async getSessionById(
+    @Query('sessionId') sessionId: string,
+    @GetUser() user?: any,
+  ) {
+    if (!sessionId) {
+      throw new BadRequestException('sessionId is required');
+    }
+
+    const userAccess = user
+      ? {
+          _id: user._id.toString(),
+          isLoggedIn: true,
+          isSubscribed: user.isSubscribed ?? false,
+        }
+      : undefined;
+
+    const session = await this.sessionService.getSessionById(
+      sessionId,
+      userAccess,
+    );
+    if (!session) throw new NotFoundException('Session not found');
+
+    return {
+      success: true,
+      message: 'Session details fetched successfully',
+      data: session,
+    };
+  }
+
+  @Get('getNext')
+  @UseGuards(OptionalAuthGuard, SessionAccessGuard)
+  async getNextSession(
+    @Query('sessionId') currentSessionId: string,
+    @GetUser() user?: any,
+  ) {
+    try {
+      if (!currentSessionId) {
+        throw new BadRequestException('sessionId is required');
+      }
+
+      const userAccess = user
+        ? {
+            _id: user._id.toString(),
+            isLoggedIn: true,
+            isSubscribed: user.isSubscribed ?? false,
+          }
+        : undefined;
+
+      const nextSession = await this.sessionService.getNextSession(
+        currentSessionId,
+        userAccess,
+      );
+      if (!nextSession) {
+        return { success: true, message: 'No next session found', data: null };
+      }
+
+      return {
+        success: true,
+        message: 'Next session fetched successfully',
+        data: nextSession,
+      };
+    } catch (error: any) {
+      this.logger.error('Error fetching next session:', error);
+      throw new HttpException(
+        { success: false, message: error.message },
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
-}
-
 }

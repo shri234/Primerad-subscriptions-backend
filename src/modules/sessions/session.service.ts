@@ -16,7 +16,7 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 import { applySessionAccessControl } from '../../config/session-access-helper';
 import { IUserAccess } from './interface/session.interface';
 import { Session, SessionDocument } from './schema/session.schema';
-import {Review, ReviewDocument} from '../review/schema/review.schema'
+import { Review, ReviewDocument } from '../review/schema/review.schema';
 import type { Express } from 'express';
 import {
   PlaybackProgress,
@@ -26,7 +26,7 @@ import {
   UserSessionView,
   UserSessionViewDocument,
 } from './schema/session.schema';
-import { ISessionWithRating,ISession } from './interface/session.interface';
+import { ISessionWithRating, ISession } from './interface/session.interface';
 
 @Injectable()
 export class SessionService {
@@ -207,96 +207,93 @@ export class SessionService {
     return data;
   }
 
+  async getTopRatedCases(
+    limit: number | string,
+    userAccess: IUserAccess,
+  ): Promise<any> {
+    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+    const limitNum =
+      limit === 'All' ? null : parseInt(limit as string, 10) || 10;
 
-async getTopRatedCases(
-  limit: number | string,
-  userAccess: IUserAccess,
-): Promise<any> {
-  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
-  const limitNum = limit === 'All' ? null : (parseInt(limit as string, 10) || 10);
-  
-  type RatedAgg = {
-    _id: Types.ObjectId;
-    avgRating: number;
-    reviewCount: number;
-    lastReviewAt: Date;
-  };
+    type RatedAgg = {
+      _id: Types.ObjectId;
+      avgRating: number;
+      reviewCount: number;
+      lastReviewAt: Date;
+    };
 
-  const rated: RatedAgg[] = await this.reviewModel.aggregate([
-    {
-      $lookup: {
-        from: 'sessions',
-        localField: 'sessionId',
-        foreignField: '_id',
-        as: 'session',
+    const rated: RatedAgg[] = await this.reviewModel.aggregate([
+      {
+        $lookup: {
+          from: 'sessions',
+          localField: 'sessionId',
+          foreignField: '_id',
+          as: 'session',
+        },
       },
-    },
-    { $unwind: '$session' },
-    { $match: { 'session.sessionType': 'Dicom' } },
-    {
-      $group: {
-        _id: '$sessionId',
-        avgRating: { $avg: '$rating' },
-        reviewCount: { $sum: 1 },
-        lastReviewAt: { $max: '$createdAt' },
+      { $unwind: '$session' },
+      { $match: { 'session.sessionType': 'Dicom' } },
+      {
+        $group: {
+          _id: '$sessionId',
+          avgRating: { $avg: '$rating' },
+          reviewCount: { $sum: 1 },
+          lastReviewAt: { $max: '$createdAt' },
+        },
       },
-    },
-    { $sort: { avgRating: -1, reviewCount: -1, lastReviewAt: -1 } },
-    ...(limitNum ? [{ $limit: limitNum }] : []),
-  ]);
+      { $sort: { avgRating: -1, reviewCount: -1, lastReviewAt: -1 } },
+      ...(limitNum ? [{ $limit: limitNum }] : []),
+    ]);
 
-  const ratedIds = rated.map((r) => r._id);
+    const ratedIds = rated.map((r) => r._id);
 
-  const ratedSessions = await this.sessionModel
-    .find({ _id: { $in: ratedIds }, sessionType: 'Dicom' })
-    .populate(populateFacultyQuery)
-    .lean();
+    const ratedSessions = await this.sessionModel
+      .find({ _id: { $in: ratedIds }, sessionType: 'Dicom' })
+      .populate(populateFacultyQuery)
+      .lean();
 
-  const byId = new Map(
-    ratedSessions.map((s) => [s._id.toString(), s]),
-  );
+    const byId = new Map(ratedSessions.map((s) => [s._id.toString(), s]));
 
-  // let ordered: ISessionWithRating[] = rated
-  //   .map((r) => {
-  //     const s = byId.get(r._id.toString());
-  //     if (!s) return null;
-  //     return {
-  //       ...s,
-  //       avgRating: Math.round((r.avgRating ?? 0) * 100) / 100,
-  //       reviewCount: r.reviewCount ?? 0,
-  //     } as ISessionWithRating;
-  //   })
-  //   .filter((x): x is ISessionWithRating => Boolean(x));
+    // let ordered: ISessionWithRating[] = rated
+    //   .map((r) => {
+    //     const s = byId.get(r._id.toString());
+    //     if (!s) return null;
+    //     return {
+    //       ...s,
+    //       avgRating: Math.round((r.avgRating ?? 0) * 100) / 100,
+    //       reviewCount: r.reviewCount ?? 0,
+    //     } as ISessionWithRating;
+    //   })
+    //   .filter((x): x is ISessionWithRating => Boolean(x));
 
-  // 3) Optionally fill with unrated sessions to reach desired limit
-  // const need = (limitNum ?? Number.POSITIVE_INFINITY) - ordered.length;
-  // if (need > 0) {
-  //   const unrated = await this.sessionModel
-  //     .find({ _id: { $nin: ratedIds }, sessionType: 'Dicom' })
-  //     .populate(populateFacultyQuery)
-  //     .sort({ createdAt: -1 })
-  //     .limit(limitNum ? need : 0)
-  //     .lean();
+    // 3) Optionally fill with unrated sessions to reach desired limit
+    // const need = (limitNum ?? Number.POSITIVE_INFINITY) - ordered.length;
+    // if (need > 0) {
+    //   const unrated = await this.sessionModel
+    //     .find({ _id: { $nin: ratedIds }, sessionType: 'Dicom' })
+    //     .populate(populateFacultyQuery)
+    //     .sort({ createdAt: -1 })
+    //     .limit(limitNum ? need : 0)
+    //     .lean();
 
-  //   const unratedWithMetrics: ISessionWithRating[] = unrated.map((s) => ({
-  //     ...s,
-  //     avgRating: 0,
-  //     reviewCount: 0,
-  //   }));
+    //   const unratedWithMetrics: ISessionWithRating[] = unrated.map((s) => ({
+    //     ...s,
+    //     avgRating: 0,
+    //     reviewCount: 0,
+    //   }));
 
-  //   ordered = [...ordered, ...unratedWithMetrics];
-  // }
+    //   ordered = [...ordered, ...unratedWithMetrics];
+    // }
 
-  // // 4) Apply access control (update its signature to accept ISessionLean[])
-  // const gated = applySessionAccessControl(
-  //   ordered as unknown as ISessionLean[], // ideally update applySessionAccessControl types
-  //   userAccess,
-  //   2,
-  // );
+    // // 4) Apply access control (update its signature to accept ISessionLean[])
+    // const gated = applySessionAccessControl(
+    //   ordered as unknown as ISessionLean[], // ideally update applySessionAccessControl types
+    //   userAccess,
+    //   2,
+    // );
 
-  return this.appendImageDomainToMany(ratedSessions);
-}
-
+    return this.appendImageDomainToMany(ratedSessions);
+  }
 
   async getTopRatedLectures(userAccess: IUserAccess): Promise<any> {
     const populateFacultyQuery = { path: 'faculty', select: 'name image' };
@@ -324,7 +321,7 @@ async getTopRatedCases(
           .limit(8),
         this.sessionModel
           .find({ sessionType: 'Vimeo' })
-          .populate(populateFacultyQuery)    
+          .populate(populateFacultyQuery)
           .sort({ createdAt: -1 })
           .limit(7),
         this.sessionModel
@@ -350,68 +347,71 @@ async getTopRatedCases(
     return this.appendImageDomainToMany(processed);
   }
 
-async getSessionsByDifficulty(
-  pathologyId: string,
-  page: number,
-  limit: number,
-  userAccess: IUserAccess | null, 
-): Promise<any> {
-  const pageNum = Math.max(page, 1);
-  const limitNum = Math.max(limit, 1);
-  const skip = (pageNum - 1) * limitNum;
+  async getSessionsByDifficulty(
+    pathologyId: string,
+    page: number,
+    limit: number,
+    userAccess: IUserAccess | null,
+  ): Promise<any> {
+    const pageNum = Math.max(page, 1);
+    const limitNum = Math.max(limit, 1);
+    const skip = (pageNum - 1) * limitNum;
 
-  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
-  const difficultyFilter = { pathologyId:new Types.ObjectId(pathologyId) };
+    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+    const difficultyFilter = { pathologyId: new Types.ObjectId(pathologyId) };
 
-  const allSessions = await this.sessionModel
-    .find(difficultyFilter)
-    .populate(populateFacultyQuery)
-    .sort({ createdAt: -1 });
+    const allSessions = await this.sessionModel
+      .find(difficultyFilter)
+      .populate(populateFacultyQuery)
+      .sort({ createdAt: -1 });
 
-  const dicomCount = allSessions.filter((s) => s.sessionType === 'Dicom').length;
-  const recordedCount = allSessions.filter((s) => s.sessionType === 'Vimeo').length;
-  const liveCount = allSessions.filter((s) => s.sessionType === 'Live').length;
+    const dicomCount = allSessions.filter(
+      (s) => s.sessionType === 'Dicom',
+    ).length;
+    const recordedCount = allSessions.filter(
+      (s) => s.sessionType === 'Vimeo',
+    ).length;
+    const liveCount = allSessions.filter(
+      (s) => s.sessionType === 'Live',
+    ).length;
 
-  const combinedSessions: ISession[] = allSessions.map(
-    (s) => s.toObject() as ISession,
-  );
+    const combinedSessions: ISession[] = allSessions.map(
+      (s) => s.toObject() as ISession,
+    );
 
-  combinedSessions.sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;
-  });
+    combinedSessions.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
 
-  let filteredSessions: ISession[];
-  if (userAccess) {
-    filteredSessions = applySessionAccessControl(
-  combinedSessions,
-  userAccess,
-  2,
-) as unknown as ISession[];
+    let filteredSessions: ISession[];
+    if (userAccess) {
+      filteredSessions = applySessionAccessControl(
+        combinedSessions,
+        userAccess,
+        2,
+      ) as unknown as ISession[];
+    } else {
+      filteredSessions = combinedSessions.slice(0, 3);
+    }
 
-  } else {
-    filteredSessions = combinedSessions.slice(0, 3);
+    const totalCount = filteredSessions.length;
+    const paginatedSessions = filteredSessions.slice(skip, skip + limitNum);
+
+    const data = {
+      sessions: paginatedSessions,
+      totalCount: filteredSessions.length,
+      page: pageNum,
+      limit: limitNum,
+      breakdown: { dicomCount, recordedCount, liveCount },
+    };
+
+    // ✅ Apply image domain to all sessions before returning
+    data.sessions = this.appendImageDomainToMany(data.sessions);
+
+    return data;
   }
-
-  const totalCount = filteredSessions.length;
-  const paginatedSessions = filteredSessions.slice(skip, skip + limitNum);
-
-  const data = {
-    sessions: paginatedSessions,
-    totalCount: filteredSessions.length,
-    page: pageNum,
-    limit: limitNum,
-    breakdown: { dicomCount, recordedCount, liveCount },
-  };
-
-  // ✅ Apply image domain to all sessions before returning
-  data.sessions = this.appendImageDomainToMany(data.sessions);
-
-  return data;
-
-}
-
 
   async getTopWatchedSessions(userAccess: IUserAccess): Promise<any> {
     const topSessions = await this.userSessionViewModel.aggregate([
@@ -450,139 +450,142 @@ async getSessionsByDifficulty(
     return applySessionAccessControl(result, userAccess, 2);
   }
 
-async getRecommendedSessions(
-  userAccess: IUserAccess | null,
-  userId: string,
-  limit: number = 10,
-): Promise<any> {
-  const watchedViews = await this.userSessionViewModel
-    .find({ userId })
-    .sort({ lastViewedAt: -1 })
-    .limit(20);
+  async getRecommendedSessions(
+    userAccess: IUserAccess | null,
+    userId: string,
+    limit: number = 10,
+  ): Promise<any> {
+    const watchedViews = await this.userSessionViewModel
+      .find({ userId })
+      .sort({ lastViewedAt: -1 })
+      .limit(20);
 
-  // safe fallback user access object
-  const safeUserAccess: IUserAccess = userAccess ?? {
-    isLoggedIn: false,
-    isSubscribed: false,
-  };
+    // safe fallback user access object
+    const safeUserAccess: IUserAccess = userAccess ?? {
+      isLoggedIn: false,
+      isSubscribed: false,
+    };
 
-  if (!watchedViews.length) {
-    const fallbackDocs = await this.sessionModel
-      .find({})
+    if (!watchedViews.length) {
+      const fallbackDocs = await this.sessionModel
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(limit);
+
+      const fallback = fallbackDocs.map((doc) => doc.toObject() as ISession);
+      const processed = applySessionAccessControl(fallback, safeUserAccess, 2);
+      return this.appendImageDomainToMany(processed);
+    }
+
+    const watchedSessionIds = watchedViews.map((v) => v.sessionId);
+
+    const watchedSessionsDocs = await this.sessionModel.find({
+      _id: { $in: watchedSessionIds },
+    });
+
+    const watchedSessions = watchedSessionsDocs.map(
+      (doc) => doc.toObject() as ISession,
+    );
+
+    const pathologyIds = watchedSessions
+      .map((s) => s.pathologyId)
+      .filter(Boolean);
+    const difficultyLevels = watchedSessions
+      .map((s) => s.difficulty)
+      .filter(Boolean);
+    const facultyIds = watchedSessions
+      .flatMap((s) => s.faculty || [])
+      .filter(Boolean);
+
+    const query: any = {
+      _id: { $nin: watchedSessionIds },
+      $or: [
+        { pathologyId: { $in: pathologyIds } },
+        { difficulty: { $in: difficultyLevels } },
+        { faculty: { $in: facultyIds } },
+      ],
+    };
+
+    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+
+    const recommendedDocs = await this.sessionModel
+      .find(query)
+      .populate(populateFacultyQuery)
       .sort({ createdAt: -1 })
       .limit(limit);
 
-    const fallback = fallbackDocs.map((doc) => doc.toObject() as ISession);
-    const processed = applySessionAccessControl(fallback, safeUserAccess, 2);
+    const recommended = recommendedDocs.map(
+      (doc) => doc.toObject() as ISession,
+    );
+
+    const processed = applySessionAccessControl(recommended, safeUserAccess, 2);
     return this.appendImageDomainToMany(processed);
   }
 
-  const watchedSessionIds = watchedViews.map((v) => v.sessionId);
+  async getWatchedSessions(
+    userId: string,
+    sessionTypeFilter?: string,
+    limit: number = 50,
+  ): Promise<any> {
+    const playbackProgressQuery: any = { userId: new Types.ObjectId(userId) };
+    if (sessionTypeFilter && sessionTypeFilter !== 'All') {
+      let modelType: string | undefined;
 
-  const watchedSessionsDocs = await this.sessionModel.find({
-    _id: { $in: watchedSessionIds },
-  });
+      if (sessionTypeFilter === 'Dicom') modelType = 'Dicom';
+      else if (sessionTypeFilter === 'Vimeo') modelType = 'Lecture';
+      else if (sessionTypeFilter === 'Live') modelType = 'Live';
 
-  const watchedSessions = watchedSessionsDocs.map(
-    (doc) => doc.toObject() as ISession,
-  );
-
-  const pathologyIds = watchedSessions.map((s) => s.pathologyId).filter(Boolean);
-  const difficultyLevels = watchedSessions.map((s) => s.difficulty).filter(Boolean);
-  const facultyIds = watchedSessions.flatMap((s) => s.faculty || []).filter(Boolean);
-
-  const query: any = {
-    _id: { $nin: watchedSessionIds },
-    $or: [
-      { pathologyId: { $in: pathologyIds } },
-      { difficulty: { $in: difficultyLevels } },
-      { faculty: { $in: facultyIds } },
-    ],
-  };
-
-  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
-
-  const recommendedDocs = await this.sessionModel
-    .find(query)
-    .populate(populateFacultyQuery)
-    .sort({ createdAt: -1 })
-    .limit(limit);
-
-  const recommended = recommendedDocs.map(
-    (doc) => doc.toObject() as ISession,
-  );
-
-  const processed = applySessionAccessControl(recommended, safeUserAccess, 2);
-  return this.appendImageDomainToMany(processed);
-}
-
-
-async getWatchedSessions(
-  userId: string,
-  sessionTypeFilter?: string,
-  limit: number = 50,
-): Promise<any> {
-  const playbackProgressQuery: any = { userId:new Types.ObjectId(userId) };
-  if (sessionTypeFilter && sessionTypeFilter !== 'All') {
-    let modelType: string | undefined;
-
-    if (sessionTypeFilter === 'Dicom') modelType = 'Dicom';
-    else if (sessionTypeFilter === 'Vimeo') modelType = 'Lecture';
-    else if (sessionTypeFilter === 'Live') modelType = 'Live';
-
-    if (modelType) playbackProgressQuery.sessionModelType = modelType;
-  }
-  const playbackProgress = await this.playbackProgressModel
-    .find(playbackProgressQuery)
-    .sort({ lastWatchedAt: -1 })
-    .limit(limit);
-
-  if (playbackProgress.length === 0) {
-    return [];
-  }
- 
-  const sessionIds = playbackProgress.map((p) => p.sessionId);
-  const populateFacultyQuery = { path: 'faculty', select: 'name image' };
-
-  const sessions = await this.sessionModel
-    .find({ _id: { $in: sessionIds } })
-    .populate(populateFacultyQuery);
-
-  const sessionMap: Record<string, any> = {};
-  sessions.forEach((session) => {
-    const id = session._id?.toString();
-    if (id) {
-      sessionMap[id] = session;
+      if (modelType) playbackProgressQuery.sessionModelType = modelType;
     }
-  });
+    const playbackProgress = await this.playbackProgressModel
+      .find(playbackProgressQuery)
+      .sort({ lastWatchedAt: -1 })
+      .limit(limit);
 
-  return playbackProgress
-    .map((progress) => {
-      const session = sessionMap[progress.sessionId.toString()];
-      if (!session) return null;
+    if (playbackProgress.length === 0) {
+      return [];
+    }
 
-      let sessionTypeName: string;
-      if (progress.sessionModelType === 'Dicom') sessionTypeName = 'Dicom';
-      else if (progress.sessionModelType === 'Lecture')
-        sessionTypeName = 'Vimeo';
-      else if (progress.sessionModelType === 'Live')
-        sessionTypeName = 'Live';
-      else sessionTypeName = 'Unknown';
+    const sessionIds = playbackProgress.map((p) => p.sessionId);
+    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
 
-      return {
-        ...session.toObject(),
-        playbackProgress: {
-          currentTime: progress.currentTime,
-          lastWatchedAt: progress.lastWatchedAt,
-          sessionModelType: progress.sessionModelType,
-          progressId: progress._id,
-        },
-        sessionType: sessionTypeName,
-      };
-    })
-    .filter(Boolean);
-}
+    const sessions = await this.sessionModel
+      .find({ _id: { $in: sessionIds } })
+      .populate(populateFacultyQuery);
 
+    const sessionMap: Record<string, any> = {};
+    sessions.forEach((session) => {
+      const id = session._id?.toString();
+      if (id) {
+        sessionMap[id] = session;
+      }
+    });
+
+    return playbackProgress
+      .map((progress) => {
+        const session = sessionMap[progress.sessionId.toString()];
+        if (!session) return null;
+
+        let sessionTypeName: string;
+        if (progress.sessionModelType === 'Dicom') sessionTypeName = 'Dicom';
+        else if (progress.sessionModelType === 'Lecture')
+          sessionTypeName = 'Vimeo';
+        else if (progress.sessionModelType === 'Live') sessionTypeName = 'Live';
+        else sessionTypeName = 'Unknown';
+
+        return {
+          ...session.toObject(),
+          playbackProgress: {
+            currentTime: progress.currentTime,
+            lastWatchedAt: progress.lastWatchedAt,
+            sessionModelType: progress.sessionModelType,
+            progressId: progress._id,
+          },
+          sessionType: sessionTypeName,
+        };
+      })
+      .filter(Boolean);
+  }
 
   async updateSession(
     sessionId: string,
@@ -825,5 +828,48 @@ ${facultyObservations}
       messages: [{ role: 'user', content: prompt }],
       stream: true,
     });
+  }
+
+  async getSessionById(sessionId: string, userAccess?: IUserAccess) {
+    const populateFacultyQuery = { path: 'faculty', select: 'name image' };
+
+    const session = (await this.sessionModel
+      .findById(sessionId)
+      .populate('faculty', 'name image')
+      .lean()) as unknown as ISession;
+
+    if (!session) return null;
+
+    const gated = userAccess
+      ? applySessionAccessControl([session], userAccess, 2)[0]
+      : session;
+
+    return this.appendImageDomain(gated);
+  }
+
+  async getNextSession(currentSessionId: string, userAccess?: IUserAccess) {
+    const current = await this.sessionModel
+      .findById(new Types.ObjectId(currentSessionId))
+      .lean();
+    if (!current) return null;
+
+    const next = await this.sessionModel
+      .findOne({
+        moduleId: current.moduleId,
+        pathologyId: current.pathologyId,
+        createdAt: { $gt: current.createdAt },
+      })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    if (!next) return null;
+
+    const nextSession = next as unknown as ISession;
+
+    const gated = userAccess
+      ? applySessionAccessControl([nextSession], userAccess, 2)[0]
+      : nextSession;
+
+    return this.appendImageDomain(gated as ISession);
   }
 }
