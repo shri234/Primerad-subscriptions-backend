@@ -147,17 +147,16 @@ export class SessionController {
     try {
       const userId = user?._id?.toString() || null;
 
-      if (!userId) {
-        throw new HttpException(
-          {
-            success: false,
-            message: 'User not authenticated — cannot generate recommendations',
-          },
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
+      // if (!userId) {
+      //   throw new HttpException(
+      //     {
+      //       success: false,
+      //       message: 'User not authenticated — cannot generate recommendations',
+      //     },
+      //     HttpStatus.UNAUTHORIZED,
+      //   );
+      // }
 
-      // No userAccess concept — just pass null
       const sessions = await this.sessionService.getRecommendedSessions(
         null,
         userId,

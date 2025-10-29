@@ -7,6 +7,7 @@ import {
   Logger,
   Res,
   Req,
+  HttpCode,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -26,6 +27,7 @@ export class AuthController {
 
   // 🔹 LOGIN ENDPOINT
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -44,7 +46,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (example)
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
       return {
@@ -126,6 +128,7 @@ export class AuthController {
 
   // 🔹 LOGOUT ENDPOINT
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   async logout(@Res({ passthrough: true }) res: Response) {
     try {
       res.clearCookie('jwt');

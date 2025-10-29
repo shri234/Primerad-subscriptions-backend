@@ -159,7 +159,6 @@ export class SubscriptionService {
       subscription.billingCycle,
     );
 
-    // Create new subscription for renewal
     const renewedSubscription = await this.subscriptionModel.create({
       userId: subscription.userId,
       packageId: subscription.packageId,
@@ -173,7 +172,6 @@ export class SubscriptionService {
       previousSubscriptionId: subscription._id,
     });
 
-    // Mark old subscription as completed
     subscription.status = 'completed';
     await subscription.save();
 
@@ -181,7 +179,6 @@ export class SubscriptionService {
   }
 
   async checkAndExpireSubscriptions() {
-    // Cron job to run daily
     const result = await this.subscriptionModel.updateMany(
       {
         status: 'active',

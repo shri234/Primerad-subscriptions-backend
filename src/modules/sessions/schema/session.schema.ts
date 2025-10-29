@@ -77,6 +77,12 @@ export class Session {
   @Prop()
   dicomCaseVideoUrl?: string;
 
+  @Prop({
+    type: String,
+    default: '',
+  })
+  dicomVideoUrl?: string;
+
   @Prop()
   caseAccessType?: string;
 
@@ -201,7 +207,6 @@ export class UserSessionView {
 export const UserSessionViewSchema =
   SchemaFactory.createForClass(UserSessionView);
 
-// Indexes for efficient queries
 UserSessionViewSchema.index({ userId: 1, sessionId: 1 });
 UserSessionViewSchema.index({ sessionId: 1 });
 UserSessionViewSchema.index({ userId: 1, isCompleted: 1 });

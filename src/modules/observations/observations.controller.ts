@@ -6,6 +6,9 @@ import {
   Get,
   Patch,
   UseGuards,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { ObservationService } from './observations.service';
 import { CreateObservationDto } from './dto/create-observation.dto';
@@ -28,7 +31,7 @@ export class ObservationController {
     return this.observationService.createObservation(createDto);
   }
 
-  @UseGuards(AuthGuard) 
+  @UseGuards(AuthGuard)
   @Patch(':id/faculty')
   addFacultyObservation(
     @GetUser() user: any,
@@ -52,6 +55,46 @@ export class ObservationController {
     );
   }
 
+  @UseGuards(AuthGuard)
+  @Post('submit-all-observations')
+  @HttpCode(HttpStatus.OK)
+  async submitUserObservations(
+    @GetUser() user: any,
+    @Body() body: { observations: UserObservationDto[] },
+  ) {
+    return this.observationService.submitUserObservations(
+      user._id,
+      body.observations,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('compare/:sessionId')
+  async compareObservations(
+    @Param('sessionId') sessionId: string,
+    @GetUser() user: any,
+  ) {
+    return this.observationService.compareFacultyAndUserObservations(
+      sessionId,
+      user._id,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get(':id/dicom-video')
+  async getDicomVideoUrl(@Param('id') sessionId: string) {
+    const dicomVideo =
+      await this.observationService.getDicomVideoUrl(sessionId);
+    if (!dicomVideo) {
+      throw new NotFoundException('DICOM video not found or not accessible');
+    }
+
+    return {
+      success: true,
+      sessionId,
+      dicomVideoUrl: dicomVideo,
+    };
+  }
 
   @UseGuards(AuthGuard)
   @Get('session/:sessionId')
