@@ -29,6 +29,12 @@ export class Module {
   imageUrl?: string;
 
   @Prop({
+    type: Boolean,
+    default: false, // <-- new field
+  })
+  assessment: boolean;
+
+  @Prop({
     type: Date,
     default: Date.now,
   })
@@ -37,4 +43,5 @@ export class Module {
 
 export const ModuleSchema = SchemaFactory.createForClass(Module);
 
+// Ensures moduleName uniqueness
 ModuleSchema.index({ moduleName: 1 }, { unique: true });

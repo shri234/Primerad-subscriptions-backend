@@ -28,18 +28,17 @@ interface ModuleWithSessionCount extends ModuleWithPathologyCount {
 @Injectable()
 export class ModuleService {
   private readonly logger = new Logger(ModuleService.name);
-   private readonly imageHelper: ImageDomainHelper;
+  private readonly imageHelper: ImageDomainHelper;
 
   constructor(
     @InjectModel(ModuleEntity.name)
     private moduleModel: Model<ModuleDocument>,
     private configService: ConfigService,
-    
   ) {
-     const domain:string = this.configService.get<string>('BACKEND_IMAGE_DOMAIN') ?? '';
+    const domain: string =
+      this.configService.get<string>('BACKEND_IMAGE_DOMAIN') ?? '';
     this.imageHelper = new ImageDomainHelper(domain);
   }
-
 
   private successResponse(message: string, data: any) {
     return { success: true, message, data };
@@ -85,6 +84,7 @@ export class ModuleService {
         $project: {
           moduleName: 1,
           imageUrl: 1,
+          assessment: 1,
           totalPathologiesCount: 1,
           randomPathologyNames: {
             $let: {
@@ -103,7 +103,10 @@ export class ModuleService {
     ]);
 
     const updated = this.imageHelper.appendImageDomainToMany(modules);
-    return this.successResponse('Modules with pathology count fetched', updated);
+    return this.successResponse(
+      'Modules with pathology count fetched',
+      updated,
+    );
   }
 
   async getModulesWithSessionCount() {
