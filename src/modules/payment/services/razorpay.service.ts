@@ -80,12 +80,12 @@ export class RazorpayService {
     return { orderId: order.id, subscription };
   }
 
-  async verifyPayment(data: VerifyRazorpayDto & { userId: string }) {
+  async verifyPayment(data: VerifyRazorpayDto, userId: string) {
+    console.log(userId, 'userId');
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      userId,
       packageId,
     } = data;
 
@@ -96,13 +96,27 @@ export class RazorpayService {
       )
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
-
+    console.log(expectedSignature, razorpay_signature);
     const isValid = expectedSignature === razorpay_signature;
+    console.log(isValid);
 
-    const paymentDetails = await this.razorpay.payments
-      .fetch(razorpay_payment_id)
-      .catch(() => null);
+    let paymentDetails =
+      await this.razorpay.payments.fetch(razorpay_payment_id);
 
+    // Capture authorized payments
+    if (isValid && paymentDetails?.status === 'authorized') {
+      try {
+        paymentDetails = await this.razorpay.payments.capture(
+          razorpay_payment_id,
+          paymentDetails.amount, // must be in paise
+          paymentDetails.currency,
+        );
+        console.log('Payment captured successfully:', paymentDetails.status);
+      } catch (err) {
+        console.error('Error capturing payment:', err);
+      }
+    }
+    console.log(paymentDetails);
     let transactionStatus = 'failed';
     if (isValid && paymentDetails?.status === 'captured')
       transactionStatus = 'captured';
@@ -120,21 +134,33 @@ export class RazorpayService {
       failureReason: isValid ? undefined : 'Signature mismatch',
     });
 
-    if (!isValid || transactionStatus === 'failed') return { success: false };
+    console.log(transactionStatus, paymentDetails?.status, isValid);
+    if (!isValid) {
+      return { success: false };
+    }
 
     const amount = paymentDetails ? (paymentDetails.amount as number) / 100 : 0;
     const currency = paymentDetails?.currency || 'INR';
 
     const subscription = await this.subscriptionModel.findOneAndUpdate(
       {
-        razorpayOrderId: razorpay_order_id,
         userId: new Types.ObjectId(userId),
+        packageId: new Types.ObjectId(packageId),
+        status: 'pending',
       },
       {
-        status: 'completed',
-        razorpayPaymentId: razorpay_payment_id,
-        amount,
-        currency,
+        $set: {
+          status: 'completed',
+          amount,
+          currency,
+          paymentGateway: 'razorpay',
+          transactionId: transaction._id,
+          metadata: {
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature,
+          },
+        },
       },
       { new: true },
     );
