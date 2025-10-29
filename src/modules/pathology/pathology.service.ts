@@ -50,7 +50,10 @@ export class PathologyService {
 
   // ✅ Get one pathology by ID with image domain applied
   async findById(pathologyId: string) {
-    const pathology = await this.pathologyModel.findById(pathologyId).lean().exec();
+    const pathology = await this.pathologyModel
+      .findById(pathologyId)
+      .lean()
+      .exec();
 
     if (!pathology) {
       throw new NotFoundException(this.errorResponse('Pathology Not Found'));
@@ -114,15 +117,14 @@ export class PathologyService {
       throw new BadRequestException('Bad Request');
     }
 
-    const updated = this.imageHelper.appendImageDomain(savedPathology.toObject());
+    const updated = this.imageHelper.appendImageDomain(
+      savedPathology.toObject(),
+    );
     return this.successResponse('Pathology created successfully', updated);
   }
 
   // ✅ Update pathology and return updated object with image domain
-  async update(
-    pathologyId: string,
-    updatePathologyDto: UpdatePathologyDto,
-  ) {
+  async update(pathologyId: string, updatePathologyDto: UpdatePathologyDto) {
     const updatedPathology = await this.pathologyModel
       .findByIdAndUpdate(
         pathologyId,
@@ -143,14 +145,29 @@ export class PathologyService {
     return this.successResponse('Pathology updated successfully', updated);
   }
 
-  // ✅ Get all pathologies for a given module ID with domain prepended
-  async findByModuleIds(moduleIds: string) {
+  async findByModuleIds(moduleId: string) {
+    const module = await this.moduleModel.findById(moduleId).lean().exec();
+    if (!module) {
+      return this.errorResponse('Module not found');
+    }
+
     const pathologies = await this.pathologyModel
-      .find({ moduleId: new mongoose.Types.ObjectId(moduleIds) })
+      .find({ moduleId: new mongoose.Types.ObjectId(moduleId) })
       .lean()
       .exec();
 
-    const updated = this.imageHelper.appendImageDomainToMany(pathologies);
-    return this.successResponse('Got pathologies by module successfully', updated);
+    const updatedPathologies =
+      this.imageHelper.appendImageDomainToMany(pathologies);
+
+    const responseData = {
+      assessment: module.assessment ?? false,
+      pathologies: updatedPathologies,
+    };
+
+    // 5️⃣ Return unified response
+    return this.successResponse(
+      'Got pathologies by module successfully',
+      responseData,
+    );
   }
 }
