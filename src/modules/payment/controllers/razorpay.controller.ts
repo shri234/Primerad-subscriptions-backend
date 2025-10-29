@@ -46,7 +46,7 @@ export class RazorpayController {
   ) {
     return this.razorpayService.verifyPayment({
       ...verificationData,
-      userId: user.id,
+      userId: user._id,
     });
   }
 
