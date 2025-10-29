@@ -44,10 +44,7 @@ export class RazorpayController {
     @Body() verificationData: VerifyRazorpayDto,
     @GetUser() user: any,
   ) {
-    return this.razorpayService.verifyPayment({
-      ...verificationData,
-      userId: user._id,
-    });
+    return this.razorpayService.verifyPayment(verificationData, user._id);
   }
 
   // @Post('webhook')
