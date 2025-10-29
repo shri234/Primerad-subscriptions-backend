@@ -11,8 +11,5 @@ export class VerifyRazorpayDto {
   razorpay_signature: string;
 
   @IsMongoId()
-  userId: string;
-
-  @IsMongoId()
   packageId: string;
 }
