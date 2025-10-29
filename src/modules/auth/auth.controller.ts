@@ -38,14 +38,14 @@ export class AuthController {
       res.cookie('jwt', result.accessToken, {
         httpOnly: true,
         secure: false,
-        sameSite: 'none',
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
 
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: false,
-        sameSite: 'none',
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
